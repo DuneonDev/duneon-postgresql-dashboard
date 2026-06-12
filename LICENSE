@@ -1,21 +1,23 @@
-MIT License
+# PROPRIETARY LICENSE AGREEMENT
 
-Copyright (c) 2026 Duneon
+IMPORTANT: PLEASE READ CAREFULLY BEFORE USING OR MODIFYING THIS SOFTWARE.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+### 1. GRANT OF USE
+By accessing or using this software, you are granted a limited, non-exclusive, and non-transferable right to use the source code, provided that you adhere strictly to the conditions regarding modification set forth in this document.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+### 2. PROHIBITION ON DIRECT REPLICATION
+You are strictly prohibited from distributing, deploying, or utilizing the software in its original, unmodified form. The project must not be used "1-to-1."
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+### 3. MANDATORY MODIFICATIONS
+Any use of this software is contingent upon a full and thorough re-branding and re-design. You are required to:
+* **Change All Branding:** Remove any and all references, logos, and iconography associated with Duneon.
+* **Redesign UI/UX:** Completely modify the color palette, CSS styles, and structural layout of the dashboard.
+* **Distinction:** The resulting product must be sufficiently distinct from the original repository so that it cannot be confused with the source material.
+
+### 4. NO WARRANTY
+THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE AUTHOR OR COPYRIGHT HOLDERS SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE.
+
+### 5. INTELLECTUAL PROPERTY
+All rights, titles, and interests in the original software architecture and design elements remain the property of Duneon. You are not granted ownership of the underlying concepts, only a license to build upon them, provided the modifications above are satisfied.
+
+© 2026 Duneon. All rights reserved.
