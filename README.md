@@ -8,75 +8,74 @@ Built with **React (TypeScript), Tailwind CSS, Express, and Electron**.
 
 ## 🌎 Official Links & Support
 
-- **Website / Сайт**: [duneon.dev](https://duneon.dev)
-- **Email Support / Поддержка**: [support+postgresqlsshdashboard@duneon.dev](mailto:support+postgresqlsshdashboard@duneon.dev)
+- **Website**: [duneon.dev](https://duneon.dev)
+- **Email Support**: [support+postgresqlsshdashboard@duneon.dev](mailto:support+postgresqlsshdashboard@duneon.dev)
 
 ---
 
-## 🚀 Key Features / Ключевые Возможности
+## 🚀 Key Features
 
-- **Secure Port Forwarding**: Automatic local forwarding loops created safely behind-the-scenes.
-- **Database Management**: Create/delete databases instantly with robust termination precautions.
-- **User Management**: Rapid creation/deletion of system roles and superuser configurations.
-- **Table Operations**: Dynamic full SQL generator, interactive base tables viewer, alter structures, and rows editor.
-- **Interactive Terminal**: Run custom complex multi-line PostgreSQL statements with clean structural data and error diagnostics.
-- **Localization**: Multi-language support (RU, EN, AM) built natively.
-- **No-Browser Desktop Packaging**: Fully integrated with Electron to compile into a lightweight native desktop binary with launcher icons.
+### 🔒 Secure Tunneling & Authentication
+- **SSH Port Forwarding**: Automatic, seamless setup of local port forwarding loops to bridge external Postgres instances.
+- **Flexible Auth**: Support for both Password and SSH Key-based (`id_rsa`) authentication.
+- **Connection Diagnostics**: Instant pre-flight checks validating SSH handshake, port accessibility, and target database credentials.
+
+### 🗄️ Database & Schema Management
+- **Database Catalog Explorer**: Instantly list, create, switch, and delete remote databases with active role-termination safety.
+- **SQL Console & History**: Interactive query terminal supporting multi-line PostgreSQL commands, execution history logs, runtime duration statistics, and full error diagnostics.
+- **Schema Visualizer**: Side-by-side table lists, count counters, and active role configurations.
+
+### 🖊️ Intuitive Table & Row Operations
+- **Interactive Structured View**: View records in clean grid tables with custom pagination and real-time column matching searches.
+- **Row Editor**: Elegant dialogs for creating or modifying rows.
+- **Advanced JSON & Array Parsing**: Automated robust JSON stringification and parsing for complex fields (e.g. JSON/JSONB data types) to prevent database transaction aborts.
+- **Graceful Bulk Delete**: Select columns, filter rows, and drop multiple records simultaneously (e.g., deleting 20+ selected rows at once) with a safe primary-key-based fallback.
+
+### ⚙️ Table Structure Modifier
+- **Column Operations**: Add new columns, alter column types, rename labels, or drop parameters on the fly.
+- **Safe Type Alters**: Built-in default value safeguards. Drops existing default variables before structural type conversions to prevent strict PostgreSQL cast constraint failures (e.g. converting defaults for text arrays), dynamically attempting to restore valid defaults afterwards.
+- **Database Relations**: Easily design and query key relationships.
+
+### 📊 Real-time Monitoring & Security
+- **Activity & PID Monitor**: Real-time listing of active client connection PIDs, host interfaces, query states, and terminal process termination signals.
+- **Metrics Dashboard**: Clear visualizers for database sizes, table row storage, index vs sequential scan tracking, and database lock audits.
+- **Durable Backup Hub**: Create complete PostgreSQL database backup snapshots and retrieve archived archives on the fly.
+- **Security Checkpoints**: Visual controls for auditing login privileges.
+
+### 🌐 System Settings & Desktop Portability
+- **Native Localization**: Built-in multi-lingual interface supporting **English**, **Russian (Русский)**, and **Armenian (Հայերեն)** natively.
+- **Desktop Application Wrapper**: Configured to run in any browser or packaged natively into a lightweight Linux desktop app via **Electron** builders.
 
 ---
 
-## 🛠️ Installation & Local Run / Запуск и Установка
+## 🛠️ Installation & Local Run
 
-### 1. Requirements / Требования
+### 1. Requirements
 - **Node.js**: v18 or later
 - **npm**: v9 or later
 
-### 2. Standard Development Start / Запуск в режиме разработки
+### 2. Standard Development Start
 ```bash
-# Install dependencies / Установка зависимостей
+# Install dependencies
 npm install
 
-# Live Hot Reload dev loop / Запуск сервера разработки
+# Start the concurrent Vite development server
 npm run dev
 ```
 
-### 3. Production Compilation / Сборка для Веб-сервера (Production)
+### 3. Production Compilation
 ```bash
-# Build frontend + bundle server into a unified module
+# Build frontend + compile backend server into a unified module
 npm run build
 
-# Start the Node Express backend loop
+# Start the production Node Express backend
 npm run start
 ```
 
 ---
 
-## 📦 Building Native Linux Desktop Installer `.deb` / Сборка Десктоп-версии `.deb`
+## ⚖️ License
 
-The workspace is configured to compile the entire React frontend and Node SSH client into a standalone, desktop application wrapper (Electron) with an indicator menu icon. 
+Proprietary software protected under **Duneon** Intellectual Property guidelines. Please refer to the [LICENSE](./LICENSE) file for exact Terms and Conditions.
 
-To create the `.deb` installer for your Ubuntu, Debian, or Linux systems:
-
-```bash
-# Install dependencies if not already installed
-npm install
-
-# Compile application and assemble the production Debian installer
-npm run build:desktop
-```
-
-Once completed successfully, your ready-to-use `.deb` installer containing autostart launchers and app-menus icons will be located in:
-📂 **`/dist-desktop/`**
-
-You can install it directly by double-clicking or through terminal:
-```bash
-sudo dpkg -i dist-desktop/postgresql-ssh-tunnels-dashboard_1.0.0_amd64.deb
-sudo apt-get install -f
-```
-
----
-
-## ⚖️ License / Лицензия
-
-Proprietary software licensed by **Duneon**. Please refer to the [LICENSE](./LICENSE) file for conditions. 
-*Note: Any direct copy, unmodified color themes, or 1-to-1 cloning of Duneon's branding layouts and corporate graphics is strictly prohibited under intellectual property laws. Please rename, re-brand, and adjust styles as described in the License if deploying a fork.*
+*Note: Unauthorized duplication of Duneon corporate color palettes, branding interfaces, logos, or 1-to-1 layouts is strictly prohibited. Please re-brand and adapt elements before introducing forks.*
