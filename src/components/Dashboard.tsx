@@ -1,11 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { SSHConfig, PgConfig, ColumnInfo } from '../types.js';
 import CreateTableModal from './CreateTableModal.js';
 import AddRowModal from './AddRowModal.js';
 import CreateUserModal from './CreateUserModal.js';
 import EditTableModal from './EditTableModal.js';
+import ImportModal from './ImportModal.js';
+import SchemaExplorer from './SchemaExplorer.js';
 import { LangType, translations } from '../translations.js';
 import DuneonLogo from './DuneonLogo.js';
+import { uiSound } from '../utils/audio.js';
+import SettingsModal from './SettingsModal.js';
+
+// New system consoles imports
+import MonitoringSection from './MonitoringSection.js';
+import StructureSection from './StructureSection.js';
+import BackupSection from './BackupSection.js';
+import SecuritySection from './SecuritySection.js';
+import AnalyticsSection from './AnalyticsSection.js';
+
 import {
   Database,
   Table as TableIcon,
@@ -26,7 +39,25 @@ import {
   Search,
   Check,
   Server,
-  Globe
+  Globe,
+  Download,
+  ChevronDown,
+  History,
+  Layers,
+  Star,
+  Copy,
+  Activity,
+  ShieldAlert,
+  Lock,
+  UserCheck,
+  Eye,
+  Zap,
+  Code,
+  TrendingUp,
+  Archive,
+  ArrowDownToLine,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -36,11 +67,24 @@ interface DashboardProps {
   onLogout: () => void;
   lang: LangType;
   setLang: (l: LangType) => void;
-  logoType: 'default' | 'no_d' | 'no_logo' | 'no_text';
-  setLogoType: (logo: 'default' | 'no_d' | 'no_logo' | 'no_text') => void;
+  theme: 'light' | 'dark' | 'system';
+  setTheme: (t: 'light' | 'dark' | 'system') => void;
+  soundMuted: boolean;
+  setSoundMuted: (b: boolean) => void;
 }
 
-export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases, onLogout, lang, setLang, logoType, setLogoType }: DashboardProps) {
+export default function Dashboard({ 
+  sshConfig, 
+  initialPgConfig, 
+  initialDatabases, 
+  onLogout, 
+  lang, 
+  setLang,
+  theme,
+  setTheme,
+  soundMuted,
+  setSoundMuted
+}: DashboardProps) {
   const t = translations[lang];
 
   // Navigation & Config
@@ -59,7 +103,7 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
   const [searchQuery, setSearchQuery] = useState('');
 
   // Active workspace tab
-  const [activeTab, setActiveTab ] = useState<'data' | 'schema' | 'query' | 'users'>('data');
+  const [activeTab, setActiveTab ] = useState<'data' | 'schema' | 'query' | 'users' | 'er' | 'monitoring' | 'backup' | 'analytics' | 'security' | 'structure'>('data');
   const [runningQuery, setRunningQuery] = useState('SELECT * FROM pg_catalog.pg_tables LIMIT 10;');
   const [customQueryResult, setCustomQueryResult] = useState<any>(null);
 
@@ -80,7 +124,131 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
   const [showEditTable, setShowEditTable ] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [showAddRow, setShowAddRow] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+
+  const [showSettings, setShowSettings] = useState(false);
+
+  const [queryHistoryList, setQueryHistoryList] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('duneon_query_history');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveToHistory = (sql: string, success: boolean, rowCount?: number, errorMsg?: string) => {
+    const newItem = {
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+      sql,
+      timestamp: Date.now(),
+      success,
+      db: currentDb,
+      rowCount,
+      error: errorMsg
+    };
+    setQueryHistoryList(prev => {
+      const updated = [newItem, ...prev].slice(0, 50);
+      try {
+        localStorage.setItem('duneon_query_history', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
+  const clearHistory = () => {
+    setQueryHistoryList([]);
+    try {
+      localStorage.removeItem('duneon_query_history');
+    } catch {}
+  };
+
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyDbFilter, setHistoryDbFilter] = useState<'all' | 'current'>('all');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'all' | 'success' | 'error'>('all');
+  const [historyStarredOnly, setHistoryStarredOnly] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const toggleStarQuery = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setQueryHistoryList(prev => {
+      const updated = prev.map(item => item.id === id ? { ...item, pinned: !item.pinned } : item);
+      try {
+        localStorage.setItem('duneon_query_history', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+  };
+
+  const copyQueryText = (text: string, id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1500);
+      uiSound.click(); // play subtle sound on copy success
+    });
+  };
+
+  // --- SUBTLE SOUNDS EFFECTS EFFECT WORKFLOWS ---
+  const isFirstMountRef = React.useRef(true);
+  const lastSoundTimeRef = React.useRef(0);
+
+  const playInteractionSound = useCallback(() => {
+    const now = Date.now();
+    if (now - lastSoundTimeRef.current > 60) {
+      uiSound.click();
+      lastSoundTimeRef.current = now;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    playInteractionSound();
+  }, [activeTab, playInteractionSound]);
+
+  useEffect(() => {
+    if (isFirstMountRef.current) return;
+    playInteractionSound();
+  }, [currentTable, playInteractionSound]);
+
+  useEffect(() => {
+    if (isFirstMountRef.current) return;
+    if (successMsg) {
+      // Don't double trigger if it is custom query execution success, since we play a custom chime there.
+      if (successMsg === t.sqlQuerySuccess) return;
+      uiSound.success();
+    }
+  }, [successMsg, t.sqlQuerySuccess]);
+
+  useEffect(() => {
+    if (isFirstMountRef.current) return;
+    if (error) {
+      uiSound.error();
+    }
+  }, [error]);
+
+  const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setQueryHistoryList(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      try {
+        localStorage.setItem('duneon_query_history', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+  };
 
   // Custom non-blocking confirm dialog state to prevent sandboxed iframe issues
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -101,12 +269,9 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
   };
 
   // 1. Fetch tables for active database
-  const fetchTables = useCallback(async (db: string, overridePgConfig?: PgConfig) => {
+  const fetchTables = useCallback(async (db: string, forceSelectTable?: string | null, overridePgConfig?: PgConfig) => {
     setLoading(true);
     setError(null);
-    setCurrentTable(null);
-    setColumns([]);
-    setRows([]);
 
     const targetPgConfig = overridePgConfig || { ...pgConfig, database: db };
     
@@ -120,17 +285,33 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to locate tables list');
       }
-      setTables(data.tables || []);
-      if (data.tables && data.tables.length > 0) {
-        setCurrentTable(data.tables[0]);
+      const fetchedTables = data.tables || [];
+      setTables(fetchedTables);
+
+      // Determine which table to select: prefer forceSelectTable if valid, then currentTable if still exists, then the first table
+      let tableToSelect: string | null = null;
+      if (forceSelectTable) {
+        const found = fetchedTables.find(t => t.toLowerCase() === forceSelectTable.toLowerCase());
+        tableToSelect = found || forceSelectTable;
+      } else if (currentTable) {
+        const found = fetchedTables.find(t => t.toLowerCase() === currentTable.toLowerCase());
+        if (found) {
+          tableToSelect = found;
+        } else if (fetchedTables.length > 0) {
+          tableToSelect = fetchedTables[0];
+        }
+      } else if (fetchedTables.length > 0) {
+        tableToSelect = fetchedTables[0];
       }
+
+      setCurrentTable(tableToSelect);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Error occurred while loading tables list');
     } finally {
       setLoading(false);
     }
-  }, [sshConfig, pgConfig]);
+  }, [sshConfig, pgConfig, currentTable]);
 
   // 2. Fetch columns & content for selected table
   const fetchTableContent = useCallback(async (tableName: string, db: string, overridePgConfig?: PgConfig) => {
@@ -152,6 +333,7 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
       setColumns(data.columns || []);
       setPrimaryKeys(data.primaryKeys || []);
       setRows(data.rows || []);
+      setSelectedRows([]);
     } catch (err: any) {
       console.error(err);
       setError(err.message || `Error occurred while receiving "${tableName}" relations`);
@@ -188,6 +370,7 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
 
   // Automatically fetch table content when selected table changes
   useEffect(() => {
+    setSearchQuery('');
     if (currentTable && currentDb) {
       fetchTableContent(currentTable, currentDb);
     }
@@ -205,7 +388,7 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
     setColumns([]);
     setRows([]);
     setSuccessMsg((lang === 'ru' ? 'Переключено на базу данных: ' : lang === 'am' ? 'Անցում կատարվեց տվյալների բազային. ' : 'Switched to database: ') + db);
-    await fetchTables(db, updatedPgConfig);
+    await fetchTables(db, null, updatedPgConfig);
     await fetchPostgresUsers(db, updatedPgConfig);
   };
 
@@ -323,42 +506,38 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
     setSuccessMsg(null);
     if (!currentTable) return;
 
-    const response = await fetch('/api/postgres/table/alter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ssh: sshConfig,
-        pg: pgConfig,
-        tableName: currentTable,
-        newTableName: newTableNameStr,
-        operations,
-      }),
-    });
+    try {
+      const response = await fetch('/api/postgres/table/alter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ssh: sshConfig,
+          pg: pgConfig,
+          tableName: currentTable,
+          newTableName: newTableNameStr,
+          operations,
+        }),
+      });
 
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || 'Failed to apply schema operations to table');
-    }
-
-    setSuccessMsg((lang === 'ru' ? 'Схема таблицы ' : lang === 'am' ? 'Աղյուսակի սխեման ' : 'Table schema for ') + `"${currentTable}"` + (lang === 'ru' ? ' успешно изменена!' : lang === 'am' ? ' հաջողությամբ փոփոխվեց:' : ' successfully updated!'));
-    
-    // Update tables list and selection
-    const index = tables.indexOf(currentTable);
-    const updatedTables = [...tables];
-    if (newTableNameStr !== currentTable) {
-      if (index !== -1) {
-        updatedTables[index] = newTableNameStr;
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to apply schema operations to table');
       }
-      updatedTables.sort();
-      setTables(updatedTables);
-      setCurrentTable(newTableNameStr);
-    } else {
-      // Just refetch same table definition and content
-      await fetchTables(currentDb);
-      await fetchTableContent(currentTable, currentDb);
-    }
 
-    setShowEditTable(false);
+      // Close the modal immediately so it does not adapt to modified state values during fetch
+      setShowEditTable(false);
+
+      setSuccessMsg((lang === 'ru' ? 'Схема таблицы ' : lang === 'am' ? 'Աղյուսակի սխեման ' : 'Table schema for ') + `"${currentTable}"` + (lang === 'ru' ? ' успешно изменена!' : lang === 'am' ? ' հաջողությամբ փոփոխվեց:' : ' successfully updated!'));
+      
+      // Just refetch same table definition and content, making sure we preserve the altered table
+      await fetchTables(currentDb, newTableNameStr);
+      await fetchTableContent(newTableNameStr, currentDb);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Error occurred while altering tables');
+      // Pass error back up to show in EditTableModal as well
+      throw err;
+    }
   };
 
   const handleDeleteTable = async (tableName: string) => {
@@ -483,6 +662,154 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
     );
   };
 
+  const handleDeleteSelectedRows = async () => {
+    if (!currentTable) return;
+    if (primaryKeys.length === 0) {
+      setError(t.cantDeleteRowNoPk);
+      return;
+    }
+    if (selectedRows.length === 0) return;
+
+    const firstPk = primaryKeys[0];
+    const pkValues = selectedRows.map(row => row[firstPk]);
+
+    askConfirm(
+      t.msgConfirmDeleteMultipleRowsTitle,
+      t.msgConfirmDeleteMultipleRowsMsg.replace('{count}', selectedRows.length.toString()),
+      async () => {
+        setLoading(true);
+        setError(null);
+        setSuccessMsg(null);
+
+        try {
+          const response = await fetch('/api/postgres/rows/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ssh: sshConfig,
+              pg: pgConfig,
+              tableName: currentTable,
+              primaryKeyName: firstPk,
+              primaryKeyValues: pkValues,
+            }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to delete row records');
+          }
+
+          setSuccessMsg(t.msgRowUpdatedSuccess);
+          setSelectedRows([]);
+          await fetchTableContent(currentTable, currentDb);
+        } catch (err: any) {
+          setError(err.message || 'Error occurred while dropping records');
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+  };
+
+  const handleExportCSV = () => {
+    if (!filteredRows || filteredRows.length === 0) return;
+
+    // Get column names
+    const headers = columns.map(col => col.column_name);
+
+    // Escape and convert rows
+    const csvRows = [
+      // Headers row
+      headers.map(h => `"${h.replace(/"/g, '""')}"`).join(','),
+      // Values rows
+      ...filteredRows.map(row => {
+        return headers.map(h => {
+          const val = row[h];
+          if (val === null || val === undefined) {
+            return '""';
+          }
+          if (typeof val === 'object') {
+            return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+          }
+          return `"${String(val).replace(/"/g, '""')}"`;
+        }).join(',');
+      })
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${currentTable || 'table'}_export_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setShowExportDropdown(false);
+  };
+
+  const handleExportExcel = () => {
+    if (!filteredRows || filteredRows.length === 0) return;
+    
+    // Create Excel XML format
+    const headers = columns.map(col => col.column_name);
+    let xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:schemas" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Sheet1"><Table>';
+    
+    // Header row
+    xml += '<Row>';
+    headers.forEach(h => {
+      xml += `<Cell><Data ss:Type="String">${h}</Data></Cell>`;
+    });
+    xml += '</Row>';
+    
+    // Data rows
+    filteredRows.forEach(row => {
+      xml += '<Row>';
+      headers.forEach(h => {
+        const val = row[h];
+        if (val === null || val === undefined) {
+          xml += '<Cell><Data ss:Type="String"></Data></Cell>';
+          return;
+        }
+        const valStr = String(val);
+        const type = typeof val === 'number' ? 'Number' : 'String';
+        xml += `<Cell><Data ss:Type="${type}">${valStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</Data></Cell>`;
+      });
+      xml += '</Row>';
+    });
+    
+    xml += '</Table></Worksheet></Workbook>';
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${currentTable || 'table'}_export_${Date.now()}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setShowExportDropdown(false);
+    setSuccessMsg(lang === 'ru' ? 'Данные экспортированы в формате MS Excel!' : 'File exported in MS Excel XML Workbook format!');
+  };
+
+  const handleExportJSON = () => {
+    if (!filteredRows || filteredRows.length === 0) return;
+
+    const jsonContent = JSON.stringify(filteredRows, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${currentTable || 'table'}_export_${Date.now()}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setShowExportDropdown(false);
+  };
+
   // --- RAW QUERY OPERATIONS ---
   const handleExecuteCustomQuery = async () => {
     if (!runningQuery.trim()) return;
@@ -502,11 +829,18 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
       }
       setCustomQueryResult(data);
       setSuccessMsg(t.sqlQuerySuccess);
+      uiSound.queryComplete();
+
+      const rCount = data.rowCount ?? data.rows?.length ?? 0;
+      saveToHistory(runningQuery, true, rCount);
+
       if (runningQuery.toLowerCase().includes('create') || runningQuery.toLowerCase().includes('drop') || runningQuery.toLowerCase().includes('alter')) {
-        await fetchTables(currentDb);
+        await fetchTables(currentDb, currentTable);
       }
     } catch (err: any) {
-      setError(err.message || 'SQL Parser Syntactical Error');
+      const errorMsg = err.message || 'SQL Parser Syntactical Error';
+      setError(errorMsg);
+      saveToHistory(runningQuery, false, undefined, errorMsg);
     } finally {
       setLoading(false);
     }
@@ -598,7 +932,7 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
         <div className="flex items-center gap-6">
           {/* Duneon Logo */}
           <div className="flex items-center gap-2">
-            <DuneonLogo className="h-6 md:h-7" logoType={logoType} />
+            <DuneonLogo className="h-6 md:h-7" />
           </div>
 
           <div className="hidden lg:flex items-center gap-3">
@@ -651,6 +985,17 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
               </button>
             </div>
           </div>
+
+          {/* Settings Trigger */}
+          <button
+            type="button"
+            onClick={() => { uiSound.click(); setShowSettings(true); }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0F1115]/50 hover:bg-[#15171F] border border-[#23252C] hover:border-[#2F323B] rounded-full text-slate-400 hover:text-white text-[11px] font-bold font-sans transition-all cursor-pointer shadow-sm"
+            title={lang === 'ru' ? 'Настройки системы (звуки, язык, тема)' : 'System Settings (chimes, language, theme)'}
+          >
+            <Settings className="h-3.5 w-3.5" />
+            <span>{lang === 'ru' ? 'НАСТРОЙКИ' : 'SETTINGS'}</span>
+          </button>
 
           <button
             onClick={onLogout}
@@ -780,29 +1125,107 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
           </div>
 
           {/* Quick Tab control options */}
-          <div className="p-3 border-t border-[#131418] bg-[#0A0B0D]/50 grid grid-cols-2 gap-2 text-xs shrink-0 font-sans font-semibold">
-            <button
-              onClick={() => setActiveTab('query')}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all gap-1.2 cursor-pointer ${
-                activeTab === 'query'
-                  ? 'border-[#3E4254] bg-[#15171F] text-white font-bold'
-                  : 'border-[#23252C] bg-[#050506] text-gray-500 hover:text-white'
-              }`}
-            >
-              <Terminal className="h-4 w-4" />
-              <span className="text-[10px] tracking-wide">SQL_TERMINAL</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all gap-1.2 cursor-pointer ${
-                activeTab === 'users'
-                  ? 'border-[#3E4254] bg-[#15171F] text-white font-bold'
-                  : 'border-[#23252C] bg-[#050506] text-gray-500 hover:text-white'
-              }`}
-            >
-              <Users className="h-4 w-4" />
-              <span className="text-[10px] tracking-wide">ROLES_MGR</span>
-            </button>
+          <div className="p-3 border-t border-[#131418] bg-[#0A0B0D]/50 flex flex-col gap-2 shrink-0 font-sans font-semibold">
+            <span className="text-[9.5px] font-bold uppercase tracking-widest text-zinc-500 font-mono">
+              {lang === 'ru' ? 'ИНСТРУМЕНТЫ И УПРАВЛЕНИЕ' : 'TOOLS & CONSOLES'}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5 text-[10.5px]">
+              <button
+                onClick={() => { setActiveTab('query'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'query'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm animate-pulseReady'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <Terminal className="h-3 w-3 shrink-0" />
+                <span className="truncate">Terminal</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('er'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'er'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <Layers className="h-3 w-3 shrink-0" />
+                <span className="truncate">ER Graph</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('structure'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'structure'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <Eye className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="truncate">{lang === 'ru' ? 'Объекты' : 'Objects'}</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('monitoring'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'monitoring'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <Activity className="h-3 w-3 shrink-0 text-blue-400" />
+                <span className="truncate">{lang === 'ru' ? 'Телеметрия' : 'Metrics'}</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('backup'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'backup'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <Archive className="h-3 w-3 shrink-0 text-amber-500" />
+                <span className="truncate">{lang === 'ru' ? 'Бэкапы' : 'Backups'}</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('analytics'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'analytics'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <TrendingUp className="h-3 w-3 shrink-0 text-emerald-400" />
+                <span className="truncate">Analytics</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('security'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'security'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <Lock className="h-3 w-3 shrink-0 text-pink-400" />
+                <span className="truncate">Security</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('users'); setCurrentTable(''); }}
+                className={`flex items-center gap-1.5 p-1.5 rounded border transition-all cursor-pointer font-mono font-bold ${
+                  activeTab === 'users'
+                    ? 'border-[#3E4254] bg-[#15171F] text-white font-bold shadow-sm'
+                    : 'border-[#23252C] bg-[#050506] text-gray-400 hover:text-white'
+                }`}
+              >
+                <Users className="h-3 w-3 shrink-0 text-indigo-400" />
+                <span className="truncate">Roles</span>
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -839,7 +1262,15 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
             <div className="flex items-center gap-2 font-mono">
               <div className="text-xs text-gray-600">public.</div>
               <h2 className="text-xs font-bold text-white tracking-widest uppercase font-mono">
-                {currentTable ? currentTable : 'UNSPECIFIED_STAGE'}
+                {activeTab === 'er' ? 'DB_SCHEMA_GRAPH' : 
+                 activeTab === 'query' ? 'SQL_QUERY_CONSOLE' :
+                 activeTab === 'users' ? 'ROLES_MANAGER' :
+                 activeTab === 'monitoring' ? 'STATUS_MONITORING' :
+                 activeTab === 'structure' ? 'DB_OBJECTS_STRUCTURE' :
+                 activeTab === 'backup' ? 'BACKUPS_AND_RECOVERY' :
+                 activeTab === 'security' ? 'SECURITY_AUDITING' :
+                 activeTab === 'analytics' ? 'METRICS_AND_ANALYTICS' :
+                 currentTable ? currentTable : 'UNSPECIFIED_STAGE'}
               </h2>
             </div>
 
@@ -893,30 +1324,145 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => fetchTableContent(currentTable, currentDb)}
-                      className="flex items-center justify-center border border-[#23252C] bg-[#0A0B0D] hover:bg-[#15171F] rounded-full p-1.5 text-gray-400 hover:text-white transition-all cursor-pointer h-8 w-8"
-                      title={t.refreshBtn}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
+                   <div className="flex items-center gap-2 shrink-0">
+                     <button
+                       onClick={() => fetchTableContent(currentTable, currentDb)}
+                       className="flex items-center justify-center border border-[#23252C] bg-[#0A0B0D] hover:bg-[#15171F] rounded-full p-1.5 text-gray-400 hover:text-white transition-all cursor-pointer h-8 w-8"
+                       title={t.refreshBtn}
+                     >
+                       <RefreshCw className="h-4 w-4" />
+                     </button>
 
-                    <button
-                      onClick={() => {
-                        setEditingRow(null);
-                        setShowAddRow(true);
-                      }}
-                      className="flex items-center gap-1.5 rounded-full bg-white hover:bg-neutral-200 text-black text-[11px] font-bold px-3.5 py-1.5 cursor-pointer h-8 shadow-md"
-                    >
-                      <Plus className="h-3.5 w-3.5 text-black" />
-                      {t.addRowBtn}
-                    </button>
-                  </div>
+                     {/* Export Dropdown */}
+                     <div className="relative">
+                       <button
+                         onClick={() => setShowExportDropdown(!showExportDropdown)}
+                         disabled={filteredRows.length === 0}
+                         className="flex items-center gap-1.5 border border-[#23252C] bg-[#0A0B0D] hover:bg-[#15171F] disabled:opacity-40 disabled:cursor-not-allowed rounded-full px-3.5 py-1.5 text-gray-400 hover:text-white transition-all cursor-pointer h-8 text-[11px] font-bold"
+                         title="Export displayed records"
+                       >
+                         <Download className="h-3.5 w-3.5" />
+                         <span>EXPORT</span>
+                         <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${showExportDropdown ? 'rotate-180' : ''}`} />
+                       </button>
+
+                       {showExportDropdown && (
+                         <>
+                           {/* Invisible backdrop to close dropdown */}
+                           <div 
+                             className="fixed inset-0 z-40 cursor-default" 
+                             onClick={() => setShowExportDropdown(false)} 
+                           />
+                           <div className="absolute right-0 mt-1 w-36 rounded-md border border-[#23252C] bg-[#0A0B0D] shadow-xl z-50 overflow-hidden py-1">
+                             <button
+                               onClick={handleExportCSV}
+                               className="flex items-center gap-2 w-full px-3 py-2 text-left text-xs text-gray-350 hover:text-white hover:bg-[#15171F] transition-colors cursor-pointer"
+                             >
+                               <FileSpreadsheet className="h-3.5 w-3.5 text-[#107C41]" />
+                               <span>{t.exportCsv}</span>
+                             </button>
+                             <button
+                               onClick={handleExportExcel}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-left text-xs text-gray-350 hover:text-white hover:bg-[#15171F] transition-colors cursor-pointer"
+                              >
+                                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+                                <span>Excel Workbook</span>
+                              </button>
+                              <button
+                                onClick={handleExportJSON}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-left text-xs text-gray-350 hover:text-white hover:bg-[#15171F] transition-colors cursor-pointer"
+                              >
+                                <span className="text-[10px] text-amber-500 font-mono font-bold w-3.5 text-center">{'{ }'}</span>
+                                <span>{t.exportJson}</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Import CSV/Excel button trigger */}
+                      <button
+                        onClick={() => setShowImportModal(true)}
+                        className="flex items-center gap-1.5 border border-[#23252C] bg-[#0A0B0D] hover:bg-[#15171F] rounded-full px-3.5 py-1.5 text-gray-400 hover:text-white transition-all cursor-pointer h-8 text-[11px] font-bold"
+                        title="Import CSV/Excel data into this table"
+                      >
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
+                        <span>IMPORT</span>
+                      </button>
+
+                      {selectedRows.length > 0 && (
+                        <button
+                          onClick={handleDeleteSelectedRows}
+                          className="flex items-center gap-1.5 border border-red-950/60 bg-red-950/20 hover:bg-red-950/40 rounded-full px-3.5 py-1.5 text-red-400 hover:text-red-300 transition-all cursor-pointer h-8 text-[11px] font-bold animate-fade-in"
+                          title="Delete selected rows"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                          <span>{t.bulkDeleteSelected} ({selectedRows.length})</span>
+                        </button>
+                      )}
+
+
+
+                     <button
+                       onClick={() => {
+                         setEditingRow(null);
+                         setShowAddRow(true);
+                       }}
+                       className="flex items-center gap-1.5 rounded-full bg-white hover:bg-neutral-200 text-black text-[11px] font-bold px-3.5 py-1.5 cursor-pointer h-8 shadow-md"
+                     >
+                       <Plus className="h-3.5 w-3.5 text-black" />
+                       {t.addRowBtn}
+                     </button>
+                   </div>
                 </div>
 
                 {/* Data Grid Table representation */}
-                <div className="flex-1 border border-[#23252C] rounded-xl overflow-hidden bg-[#0A0B0D] flex flex-col min-h-0">
+                <div className="flex-1 border border-[#23252C] rounded-xl overflow-hidden bg-[#0A0B0D] flex flex-col min-h-0 relative">
+                  
+                  <AnimatePresence>
+                    {loading && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#060708]/85 backdrop-blur-[1px]"
+                      >
+                        {/* Scanning Laser Animation */}
+                        <motion.div
+                          initial={{ left: '-100%' }}
+                          animate={{ left: '100%' }}
+                          transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                          className="absolute top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/80 to-transparent w-full"
+                        />
+                        
+                        <div className="flex flex-col items-center">
+                          {/* Beautiful spinning database loader */}
+                          <div className="relative flex items-center justify-center">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                              className="h-11 w-11 rounded-full border-2 border-dashed border-amber-500/20 border-t-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                            />
+                            <Database className="h-4.5 w-4.5 text-amber-500 absolute" />
+                          </div>
+
+                          <motion.div
+                            animate={{ opacity: [0.5, 1, 0.5] }}
+                            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                            className="mt-4 text-[10px] font-mono font-bold tracking-widest text-amber-500 uppercase"
+                          >
+                            {lang === 'ru' ? 'ЗАГРУЗКА ДАННЫХ...' : lang === 'am' ? 'ԲԵՌՆՎՈՒՄ Է...' : 'LOADING DATA CONTENT...'}
+                          </motion.div>
+                          
+                          <p className="text-[10px] text-gray-500 mt-1.5 font-mono">
+                            {lang === 'ru' ? 'Синхронизация через SSH туннель...' : lang === 'am' ? 'Սինխրոնացում SSH թունելով...' : 'Syncing over secure SSH tunnel...'}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <div className="overflow-auto flex-1 h-full">
                     {filteredRows.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full py-16 text-center text-gray-500">
@@ -928,6 +1474,22 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
                       <table className="w-full text-left border-collapse text-xs">
                         <thead>
                           <tr className="bg-[#050506] border-b border-[#23252C] text-gray-400 uppercase tracking-wider text-[10px] font-semibold sticky top-0 z-15">
+                            {primaryKeys.length > 0 && (
+                              <th className="px-3 py-2.5 text-center w-10 border-r border-[#23252C]/40">
+                                <input
+                                  type="checkbox"
+                                  checked={filteredRows.length > 0 && selectedRows.length === filteredRows.length}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedRows([...filteredRows]);
+                                    } else {
+                                      setSelectedRows([]);
+                                    }
+                                  }}
+                                  className="rounded border-zinc-700 bg-zinc-950 text-purple-600 focus:ring-purple-500 cursor-pointer h-3.5 w-3.5"
+                                />
+                              </th>
+                            )}
                             {columns.map((col) => (
                               <th key={col.column_name} className="px-3.5 py-2.5 font-semibold whitespace-nowrap border-r border-[#23252C]/40">
                                 <span className="flex items-center gap-1 font-mono font-bold">
@@ -944,6 +1506,22 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
                         <tbody className="divide-y divide-[#23252C] bg-[#0A0B0D]">
                           {filteredRows.map((row, rIdx) => (
                             <tr key={rIdx} className="hover:bg-[#15171F]/40 group transition-all">
+                              {primaryKeys.length > 0 && (
+                                <td className="px-3 py-2 text-center w-10 border-r border-[#23252C]/30">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRows.some(sr => sr[primaryKeys[0]] === row[primaryKeys[0]])}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedRows(prev => [...prev, row]);
+                                      } else {
+                                        setSelectedRows(prev => prev.filter(sr => sr[primaryKeys[0]] !== row[primaryKeys[0]]));
+                                      }
+                                    }}
+                                    className="rounded border-zinc-700 bg-zinc-950 text-purple-600 focus:ring-purple-500 cursor-pointer h-3.5 w-3.5"
+                                  />
+                                </td>
+                              )}
                               {columns.map((col) => {
                                 const val = row[col.column_name];
                                 return (
@@ -991,7 +1569,7 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
                   </div>
                   <div className="px-4 py-2 bg-[#050506]/80 border-t border-[#23252C] flex items-center justify-between text-[10px] text-gray-500 font-medium font-mono shrink-0">
                     <div>{t.rowsCount}: {filteredRows.length} OF {rows.length}</div>
-                    <div>PG_STREAM_LIMIT_150</div>
+                    <div>PG_STREAM_ALL</div>
                   </div>
                 </div>
               </div>
@@ -1069,79 +1647,278 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
             )}
 
             {activeTab === 'query' && (
-              <div className="flex flex-col h-full space-y-4 font-sans animate-fade-in">
-                <div>
-                  <h3 className="text-xs font-bold text-[#E2E8F0] uppercase tracking-widest font-mono">{t.sqlConsoleTitle}</h3>
-                  <p className="text-[10.5px] text-gray-500 mt-1 font-mono">{t.sqlConsoleSub}</p>
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full animate-fade-in font-sans">
+                {/* Left/Main Column: query input and execution outputs */}
+                <div className="lg:col-span-3 flex flex-col space-y-4 h-full">
+                  <div>
+                    <h3 className="text-xs font-bold text-[#E2E8F0] uppercase tracking-widest font-mono">{t.sqlConsoleTitle}</h3>
+                    <p className="text-[10.5px] text-gray-500 mt-1 font-mono">{t.sqlConsoleSub}</p>
+                  </div>
 
-                <div className="border border-[#23252C] rounded-xl overflow-hidden bg-[#0A0B0D] flex flex-col shrink-0 shadow-lg">
-                  <textarea
-                    value={runningQuery}
-                    onChange={(e) => setRunningQuery(e.target.value)}
-                    rows={5}
-                    className="w-full bg-[#050506]/40 border-none p-3.5 font-mono text-xs text-slate-205 placeholder-gray-650 focus:outline-none focus:ring-0 resize-none leading-relaxed"
-                    placeholder="SELECT * FROM users LIMIT 10;"
-                  />
-                  <div className="px-4 py-2.5 bg-[#050506] border-t border-[#23252C] flex items-center justify-between">
-                    <div className="text-[10.5px] text-gray-500 font-mono">
-                      CONNECTED_CLUSTER: <span className="text-white font-bold">{currentDb}</span>
+                  <div className="border border-[#23252C] rounded-xl overflow-hidden bg-[#0A0B0D] flex flex-col shrink-0 shadow-lg">
+                    <textarea
+                      value={runningQuery}
+                      onChange={(e) => setRunningQuery(e.target.value)}
+                      rows={5}
+                      className="w-full bg-[#050506]/40 border-none p-3.5 font-mono text-xs text-slate-205 placeholder-gray-650 focus:outline-none focus:ring-0 resize-none leading-relaxed"
+                      placeholder="SELECT * FROM users LIMIT 10;"
+                    />
+                    <div className="px-4 py-2.5 bg-[#050506] border-t border-[#23252C] flex items-center justify-between">
+                      <div className="text-[10.5px] text-gray-500 font-mono">
+                        CONNECTED_CLUSTER: <span className="text-white font-bold">{currentDb}</span>
+                      </div>
+                      <button
+                        onClick={handleExecuteCustomQuery}
+                        className="rounded-full bg-white hover:bg-neutral-200 text-black font-semibold text-[11px] py-1.5 px-4 flex items-center gap-1.5 transition-all cursor-pointer shadow"
+                      >
+                        <Play className="h-3.5 w-3.5 fill-black text-black" />
+                        <span>{t.btnRunQuery}</span>
+                      </button>
                     </div>
-                    <button
-                      onClick={handleExecuteCustomQuery}
-                      className="rounded-full bg-white hover:bg-neutral-200 text-black font-semibold text-[11px] py-1.5 px-4 flex items-center gap-1.5 transition-all cursor-pointer shadow"
-                    >
-                      <Play className="h-3.5 w-3.5 fill-black text-black" />
-                      <span>{t.btnRunQuery}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Print terminal results block */}
-                <div className="flex-1 border border-[#23252C] rounded-xl overflow-hidden bg-[#0A0B0D] max-h-[350px] overflow-auto flex flex-col">
-                  <div className="px-4 py-2 bg-[#050506] text-[9.5px] font-bold tracking-widest text-gray-500 border-b border-[#23252C] uppercase flex items-center justify-between font-mono">
-                    <span>{t.queryResults}</span>
-                    {customQueryResult && (
-                      <span className="text-emerald-400 font-bold bg-[#14231E]/30 px-2 py-0.5 rounded">
-                        ROWCOUNT_AFFECTED: {customQueryResult.rowCount ?? customQueryResult.rows?.length ?? 0}
-                      </span>
-                    )}
                   </div>
 
-                  <div className="p-4 overflow-auto font-mono text-xs leading-5 flex-1 select-text">
-                    {customQueryResult ? (
-                      customQueryResult.rows && customQueryResult.rows.length > 0 ? (
-                        <table className="w-full text-left text-[11px] border-collapse">
-                          <thead>
-                            <tr className="border-b border-[#23252C] text-gray-400 font-semibold font-sans">
-                              {Object.keys(customQueryResult.rows[0]).map((key) => (
-                                <th key={key} className="pb-2 px-2 font-semibold uppercase tracking-wider text-[10px] text-gray-500">{key}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#23252C]/50 font-mono">
-                            {customQueryResult.rows.map((r: any, idx: number) => (
-                              <tr key={idx} className="hover:bg-[#15171F]/30">
-                                {Object.values(r).map((v: any, vidx) => (
-                                  <td key={vidx} className="py-1.5 px-2 text-zinc-300 font-mono">
-                                    {v === null ? <span className="text-gray-600 italic">null</span> : typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                                  </td>
+                  {/* Print terminal results block */}
+                  <div className="flex-1 border border-[#23252C] rounded-xl overflow-hidden bg-[#0A0B0D] max-h-[350px] overflow-auto flex flex-col">
+                    <div className="px-4 py-2 bg-[#050506] text-[9.5px] font-bold tracking-widest text-gray-500 border-b border-[#23252C] uppercase flex items-center justify-between font-mono">
+                      <span>{t.queryResults}</span>
+                      {customQueryResult && (
+                        <span className="text-emerald-400 font-bold bg-[#14231E]/30 px-2 py-0.5 rounded">
+                          ROWCOUNT_AFFECTED: {customQueryResult.rowCount ?? customQueryResult.rows?.length ?? 0}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-4 overflow-auto font-mono text-xs leading-5 flex-1 select-text">
+                      {customQueryResult ? (
+                        customQueryResult.rows && customQueryResult.rows.length > 0 ? (
+                          <table className="w-full text-left text-[11px] border-collapse animate-fade-in">
+                            <thead>
+                              <tr className="border-b border-[#23252C] text-gray-400 font-semibold font-sans">
+                                {Object.keys(customQueryResult.rows[0]).map((key) => (
+                                  <th key={key} className="pb-2 px-2 font-semibold uppercase tracking-wider text-[10px] text-gray-500">{key}</th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-[#23252C]/50 font-mono">
+                              {customQueryResult.rows.map((r: any, idx: number) => (
+                                <tr key={idx} className="hover:bg-[#15171F]/30 border-b border-[#23252C]/30">
+                                  {Object.values(r).map((v: any, vidx) => (
+                                    <td key={vidx} className="py-1.5 px-2 text-zinc-300 font-mono">
+                                      {v === null ? <span className="text-gray-600 italic">null</span> : typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <div className="text-emerald-400 py-1 font-mono text-[11px] flex items-center gap-2">
+                            <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                            <span>{t.emptyResults}</span>
+                          </div>
+                        )
                       ) : (
-                        <div className="text-emerald-400 py-1 font-mono text-[11px] flex items-center gap-2">
-                          <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                          <span>{t.emptyResults}</span>
+                        <div className="text-center py-10 text-gray-600 font-mono text-[10.5px]">
+                          // ENTER SQL COMMAND ABOVE AND CLICK EXECUTE TO PROPAGATE BYTES_STREAM
                         </div>
-                      )
-                    ) : (
-                      <div className="text-center py-10 text-gray-600 font-mono text-[10.5px]">
-                        // ENTER SQL COMMAND ABOVE AND CLICK EXECUTE TO PROPAGATE BYTES_STREAM
-                      </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Query History Sidebar */}
+                <div className="lg:col-span-1 border border-[#23252C] rounded-xl bg-[#0A0B0D] flex flex-col overflow-hidden max-h-[500px] lg:max-h-full h-full shadow-lg">
+                  <div className="px-4 py-3 bg-[#050506] border-b border-[#23252C] flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <History className="h-4 w-4 text-zinc-400" />
+                      <span className="text-xs font-bold text-[#E2E8F0] tracking-wide uppercase font-mono">{t.queryHistory}</span>
+                    </div>
+                    {queryHistoryList.length > 0 && (
+                      <button
+                        onClick={clearHistory}
+                        className="text-[9.5px] font-bold text-rose-500 hover:text-rose-450 transition-colors uppercase cursor-pointer"
+                      >
+                        {t.clearHistory}
+                      </button>
                     )}
+                  </div>
+
+                  {/* Filters Toolbar */}
+                  <div className="p-3 bg-[#07080A] border-b border-[#1b1c22]/80 space-y-2.5 shrink-0 select-none">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-500" />
+                      <input
+                        type="text"
+                        placeholder={lang === 'ru' ? 'Поиск в истории...' : lang === 'am' ? 'Որոնել պատմության մեջ...' : 'Search query history...'}
+                        value={historySearch}
+                        onChange={(e) => setHistorySearch(e.target.value)}
+                        className="w-full bg-[#050506] border border-[#23252C] rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono transition-all"
+                      />
+                      {historySearch && (
+                        <button 
+                          onClick={() => setHistorySearch('')}
+                          className="absolute right-2 top-2 text-zinc-500 hover:text-white font-bold text-xs"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter Buttons & Star Toggle */}
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-[10px] font-mono">
+                      {/* Database Scope */}
+                      <button
+                        onClick={() => setHistoryDbFilter(prev => prev === 'all' ? 'current' : 'all')}
+                        className={`px-2 py-1 rounded transition-all flex items-center gap-1 cursor-pointer ${
+                          historyDbFilter === 'current' 
+                            ? 'bg-amber-500/15 border border-amber-500/30 text-amber-500 font-bold' 
+                            : 'bg-[#15171F]/45 border border-[#1b1c22] text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        <span>{lang === 'ru' ? 'Текущая БД' : lang === 'am' ? 'Ընթացիկ ՏԲ' : 'Current DB'}</span>
+                      </button>
+
+                      {/* Success / Error filter toggler */}
+                      <div className="flex items-center gap-1 border border-[#1b1c22] bg-[#050506] rounded p-0.5">
+                        <button
+                          onClick={() => setHistoryStatusFilter('all')}
+                          className={`px-1.5 py-0.5 rounded text-[9px] transition-all cursor-pointer ${
+                            historyStatusFilter === 'all' ? 'bg-[#23252C] text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          ALL
+                        </button>
+                        <button
+                          onClick={() => setHistoryStatusFilter('success')}
+                          className={`px-1.5 py-0.5 rounded text-[9px] transition-all cursor-pointer ${
+                            historyStatusFilter === 'success' ? 'bg-[#23252C] text-emerald-400 font-bold' : 'text-zinc-500 hover:text-emerald-500'
+                          }`}
+                        >
+                          OK
+                        </button>
+                        <button
+                          onClick={() => setHistoryStatusFilter('error')}
+                          className={`px-1.5 py-0.5 rounded text-[9px] transition-all cursor-pointer ${
+                            historyStatusFilter === 'error' ? 'bg-[#23252C] text-rose-500 font-bold' : 'text-zinc-500 hover:text-rose-500'
+                          }`}
+                        >
+                          ERR
+                        </button>
+                      </div>
+
+                      {/* Star Button */}
+                      <button
+                        onClick={() => setHistoryStarredOnly(prev => !prev)}
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                          historyStarredOnly 
+                            ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' 
+                            : 'bg-[#15171F]/45 border-[#1b1c22] text-zinc-500 hover:text-zinc-300'
+                        }`}
+                        title={lang === 'ru' ? 'Показать избранные' : 'Show starred queries'}
+                      >
+                        <Star className={`h-3 w-3 ${historyStarredOnly ? 'fill-current' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-2 overflow-y-auto flex-1 space-y-2.5 scrollbar-thin">
+                    {(() => {
+                      const filteredHistory = queryHistoryList.filter(item => {
+                        const matchesSearch = !historySearch || item.sql.toLowerCase().includes(historySearch.toLowerCase());
+                        const matchesDb = historyDbFilter === 'all' || item.db === currentDb;
+                        const matchesStatus = historyStatusFilter === 'all' || 
+                          (historyStatusFilter === 'success' && item.success) || 
+                          (historyStatusFilter === 'error' && !item.success);
+                        const matchesStar = !historyStarredOnly || !!item.pinned;
+                        return matchesSearch && matchesDb && matchesStatus && matchesStar;
+                      });
+
+                      if (filteredHistory.length === 0) {
+                        return (
+                          <div className="text-center py-12 text-zinc-650 text-xs font-mono">
+                            {historySearch || historyDbFilter === 'current' || historyStatusFilter !== 'all' || historyStarredOnly
+                              ? (lang === 'ru' ? '// ЗАПРОСЫ НЕ НАЙДЕНЫ' : lang === 'am' ? '// ՉԳՏՆՎԵՑԻՆ' : '// NO QUERIES MATCH FILTERS')
+                              : t.emptyHistory}
+                          </div>
+                        );
+                      }
+
+                      return filteredHistory.map((item) => (
+                        <div 
+                          key={item.id} 
+                          onClick={() => setRunningQuery(item.sql)}
+                          className="group border border-[#1b1c22] hover:border-[#3E4254] bg-[#050506]/35 hover:bg-[#15171F]/40 p-2.5 rounded-lg cursor-pointer transition-all duration-200 flex flex-col space-y-2 overflow-hidden relative text-left"
+                          title={lang === 'ru' ? 'Кликните, чтобы вставить запрос в консоль' : 'Click to load query into console'}
+                        >
+                          {/* Top row status and operations */}
+                          <div className="flex items-center justify-between text-[9px] font-mono text-gray-500">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`h-1.5 w-1.5 rounded-full ${item.success ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                              <span className={item.success ? "text-emerald-400 font-bold" : "text-rose-500 font-bold"}>
+                                {item.success ? "SUCCESS" : "ERROR"}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                              {/* Star button */}
+                              <button
+                                onClick={(e) => toggleStarQuery(item.id, e)}
+                                className={`p-0.5 rounded text-gray-500 hover:text-amber-400 transition-colors ${item.pinned ? 'text-amber-400' : ''}`}
+                                title={lang === 'ru' ? 'Добавить в избранное' : 'Add to favorites'}
+                              >
+                                <Star className={`h-3 w-3 ${item.pinned ? 'fill-current text-amber-400' : ''}`} />
+                              </button>
+
+                              {/* Copy button */}
+                              <button
+                                onClick={(e) => copyQueryText(item.sql, item.id, e)}
+                                className={`p-0.5 rounded transition-all ${copiedId === item.id ? 'text-emerald-400' : 'text-gray-500 hover:text-white'}`}
+                                title={lang === 'ru' ? 'Скопировать SQL' : 'Copy SQL code'}
+                              >
+                                {copiedId === item.id ? (
+                                  <Check className="h-3 w-3" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+
+                              {/* Individual Delete Item button */}
+                              <button
+                                onClick={(e) => deleteHistoryItem(item.id, e)}
+                                className="p-0.5 rounded text-gray-500 hover:text-rose-500 transition-colors"
+                                title={lang === 'ru' ? 'Удалить из истории' : 'Delete from history'}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Code content block */}
+                          <div className="text-[11px] font-mono whitespace-pre-wrap break-all line-clamp-3 text-slate-300 group-hover:text-white transition-colors antialiased bg-[#050506]/60 p-1.5 rounded max-h-24 overflow-y-auto scrollbar-none border border-[#15171F]">
+                            {item.sql}
+                          </div>
+
+                          {/* Error block (if present) */}
+                          {item.error && (
+                            <div className="text-[9.5px] font-mono text-rose-400 bg-rose-950/20 px-1.5 py-1 rounded border border-rose-950/30 line-clamp-2" title={item.error}>
+                              ⚠️ {item.error}
+                            </div>
+                          )}
+
+                          {/* Footer with database & statistics */}
+                          <div className="flex items-center justify-between text-[9px] font-mono text-zinc-500 border-t border-[#1b1c22]/50 pt-1.5">
+                            <span className="bg-[#121318] px-1 py-0.5 rounded text-zinc-400 text-[8.5px]">DB: {item.db}</span>
+                            <div className="flex items-center gap-2">
+                              <span>{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                              {item.success && item.rowCount !== undefined && (
+                                <span className="bg-emerald-950/20 text-emerald-500 px-1 py-0.5 rounded text-[8.5px]">rows: {item.rowCount}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1192,6 +1969,57 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
               </div>
             )}
 
+            {activeTab === 'monitoring' && (
+              <MonitoringSection 
+                sshConfig={sshConfig}
+                pgConfig={pgConfig}
+                currentDb={currentDb}
+                lang={lang}
+              />
+            )}
+
+            {activeTab === 'structure' && (
+              <StructureSection 
+                sshConfig={sshConfig}
+                pgConfig={pgConfig}
+                currentDb={currentDb}
+                lang={lang}
+              />
+            )}
+
+            {activeTab === 'backup' && (
+              <BackupSection 
+                currentDb={currentDb}
+                lang={lang}
+              />
+            )}
+
+            {activeTab === 'security' && (
+              <SecuritySection 
+                pgConfig={pgConfig}
+                lang={lang}
+              />
+            )}
+
+            {activeTab === 'analytics' && (
+              <AnalyticsSection 
+                sshConfig={sshConfig}
+                pgConfig={pgConfig}
+                currentDb={currentDb}
+                tables={tables}
+                lang={lang}
+              />
+            )}
+
+            {activeTab === 'er' && (
+              <SchemaExplorer 
+                sshConfig={sshConfig}
+                pgConfig={pgConfig}
+                currentDb={currentDb}
+                lang={lang}
+              />
+            )}
+
             {!currentTable && activeTab === 'data' && (
               <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                 <TableIcon className="h-10 w-10 text-zinc-600 mb-3" />
@@ -1211,6 +2039,7 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
           onClose={() => setShowCreateTable(false)}
           onCreate={handleCreateTable}
           lang={lang}
+          tables={tables}
         />
       )}
 
@@ -1242,6 +2071,22 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
           columnsList={columns}
           onClose={() => setShowEditTable(false)}
           onAlter={handleAlterTable}
+          lang={lang}
+          tables={tables}
+        />
+      )}
+
+      {showImportModal && currentTable && (
+        <ImportModal
+          onClose={() => setShowImportModal(false)}
+          tableName={currentTable}
+          columns={columns}
+          sshConfig={sshConfig}
+          pgConfig={pgConfig}
+          currentDb={currentDb}
+          onImportSuccess={() => {
+            fetchTableContent(currentTable, currentDb);
+          }}
           lang={lang}
         />
       )}
@@ -1275,6 +2120,17 @@ export default function Dashboard({ sshConfig, initialPgConfig, initialDatabases
             </div>
           </div>
         </div>
+      )}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          lang={lang}
+          setLang={setLang}
+          theme={theme}
+          setTheme={setTheme}
+          soundMuted={soundMuted}
+          setSoundMuted={setSoundMuted}
+        />
       )}
     </div>
   );

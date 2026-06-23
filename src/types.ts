@@ -21,6 +21,7 @@ export interface ColumnInfo {
   is_nullable: string;
   column_default: string | null;
   character_maximum_length: number | null;
+  references?: string | null;
 }
 
 export type Theme = 'slate' | 'cyber';

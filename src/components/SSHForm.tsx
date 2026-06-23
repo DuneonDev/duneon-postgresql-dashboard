@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
 import { SSHConfig } from '../types.js';
-import { Key, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Globe } from 'lucide-react';
+import { Key, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Globe, Settings } from 'lucide-react';
 import { LangType, translations } from '../translations.js';
 import DuneonLogo from './DuneonLogo.js';
+import SettingsModal from './SettingsModal.js';
 
 interface SSHFormProps {
   onSshSuccess: (config: SSHConfig, users: string[]) => void;
   lang: LangType;
   setLang: (l: LangType) => void;
-  logoType: 'default' | 'no_d' | 'no_logo' | 'no_text';
-  setLogoType: (logo: 'default' | 'no_d' | 'no_logo' | 'no_text') => void;
+  theme: 'light' | 'dark' | 'system';
+  setTheme: (t: 'light' | 'dark' | 'system') => void;
+  soundMuted: boolean;
+  setSoundMuted: (b: boolean) => void;
 }
 
-export default function SSHForm({ onSshSuccess, lang, setLang, logoType, setLogoType }: SSHFormProps) {
+export default function SSHForm({ 
+  onSshSuccess, 
+  lang, 
+  setLang,
+  theme,
+  setTheme,
+  soundMuted,
+  setSoundMuted
+}: SSHFormProps) {
+  const [showSettings, setShowSettings] = useState(false);
   const [host, setHost] = useState('');
   const [port, setPort] = useState(22);
   const [username, setUsername] = useState('root');
@@ -68,7 +80,7 @@ export default function SSHForm({ onSshSuccess, lang, setLang, logoType, setLogo
       {/* Top Duneon Corporate Header */}
       <header className="w-full h-16 border-b border-[#131418] bg-[#050506]/90 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-20">
         <div className="flex items-center gap-2">
-          <DuneonLogo className="h-6 md:h-7" logoType={logoType} />
+          <DuneonLogo className="h-6 md:h-7" />
         </div>
         
         <div className="flex items-center gap-4">
@@ -111,6 +123,15 @@ export default function SSHForm({ onSshSuccess, lang, setLang, logoType, setLogo
               </button>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="flex items-center justify-center h-8 w-8 bg-[#0F1115]/50 border border-[#23252C] hover:border-[#2F323B] rounded-full text-gray-400 hover:text-white transition-all cursor-pointer shadow-sm"
+            title={lang === 'ru' ? 'Настройки системы' : 'System Settings'}
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
         </div>
       </header>
 
@@ -292,6 +313,18 @@ export default function SSHForm({ onSshSuccess, lang, setLang, logoType, setLogo
           </form>
         </div>
       </div>
+
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          lang={lang}
+          setLang={setLang}
+          theme={theme}
+          setTheme={setTheme}
+          soundMuted={soundMuted}
+          setSoundMuted={setSoundMuted}
+        />
+      )}
     </div>
   );
 }

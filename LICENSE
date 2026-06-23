@@ -1,23 +1,33 @@
-# PROPRIETARY LICENSE AGREEMENT
+# Duneon Proprietary Applet License
+Copyright (c) 2026 Duneon (https://duneon.dev)
 
-IMPORTANT: PLEASE READ CAREFULLY BEFORE USING OR MODIFYING THIS SOFTWARE.
+All rights reserved.
 
-### 1. GRANT OF USE
-By accessing or using this software, you are granted a limited, non-exclusive, and non-transferable right to use the source code, provided that you adhere strictly to the conditions regarding modification set forth in this document.
+## PROHIBITION OF DIRECT REPLICATION ("1-to-1 Plagiarism")
 
-### 2. PROHIBITION ON DIRECT REPLICATION
-You are strictly prohibited from distributing, deploying, or utilizing the software in its original, unmodified form. The project must not be used "1-to-1."
+Redistribution, execution, modification, or deployment of this software is STRICTLY PROHIBITED unless all of the following conditions are met:
 
-### 3. MANDATORY MODIFICATIONS
-Any use of this software is contingent upon a full and thorough re-branding and re-design. You are required to:
-* **Change All Branding:** Remove any and all references, logos, and iconography associated with Duneon.
-* **Redesign UI/UX:** Completely modify the color palette, CSS styles, and structural layout of the dashboard.
-* **Distinction:** The resulting product must be sufficiently distinct from the original repository so that it cannot be confused with the source material.
+1. **Brand and Name Change**: You MUST remove all references to "Duneon", the "Duneon" wordmark, the "D" metallic typography, and any trade names associated with Duneon from the codebase, templates, and graphics.
+2. **Logo replacement**: You MUST delete and replace all associated corporate emblems, and logo files (`logo_default.svg`, `logo_no_d.svg`, `logo_no_logo.svg`, `logo_no_text.svg`) with your own original graphics.
+3. **Graphic Theme and Color Scheme**: You MUST alter the visual color identifiers of the software's corporate interface (specifically the dark-silver charcoal palettes and chrome gradients) to prevent brand confusion and distinctively differentiate the product from Duneon's proprietary corporate layout.
+4. **No Warranties & Indemnity**: The software is provided "AS IS", without warranty of any kind, express or implied.
 
-### 4. NO WARRANTY
-THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE AUTHOR OR COPYRIGHT HOLDERS SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE.
+Failure to comply with these restrictions will be considered a direct infringement of intellectual property.
 
-### 5. INTELLECTUAL PROPERTY
-All rights, titles, and interests in the original software architecture and design elements remain the property of Duneon. You are not granted ownership of the underlying concepts, only a license to build upon them, provided the modifications above are satisfied.
+---
 
-© 2026 Duneon. All rights reserved.
+# Проприетарное Лицензионное Соглашение Duneon
+Copyright (c) 2026 Duneon (https://duneon.dev)
+
+Все права защищены.
+
+## ЗАПРЕТ НА ПРЯМОЕ КОПИРОВАНИЕ ("1 в 1")
+
+Распространение, запуск, модификация или развертывание данного программного обеспечения СТРОГО ЗАПРЕЩЕНО, за исключением случаев выполнения всех следующих условий:
+
+1. **Изменение бренда и названия**: Вы ОБЯЗАНЫ удалить любые упоминания бренда "Duneon", текстового логотипа "Duneon", металлического шильдика "D" и любых торговых наименований, связанных с Duneon, из исходного кода, шаблонов и графики.
+2. **Замена логотипа**: Вы ОБЯЗАНЫ удалить и заменить все связанные корпоративные эмблемы и файлы логотипов (`logo_default.svg`, `logo_no_d.svg`, `logo_no_logo.svg`, `logo_no_text.svg`) своими собственными оригинальными графическими файлами.
+3. **Графическая палитра и стили**: Вы ОБЯЗАНЫ изменить визуальные цветовые идентификаторы корпоративного интерфейса приложения (в частности, палитру темно-серебряного угля и хромовые градиенты) для предотвращения смешения брендов и четкого отделения вашего продукта от проприетарной верстки Duneon.
+4. **Отказ от гарантий**: Программное обеспечение предоставляется по принципу "КАК ЕСТЬ", без каких-либо гарантий, явных или подразумеваемых.
+
+Несоблюдение указанных ограничений будет рассматриваться как прямое нарушение интеллектуальной собственности.

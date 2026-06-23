@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, X, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, X, AlertCircle, Link2 } from 'lucide-react';
 import { ColumnInfo } from '../types';
 import { LangType, translations } from '../translations';
 
@@ -10,6 +10,7 @@ interface ColumnField {
   isNullable: boolean;
   defaultValue: string;
   isNew?: boolean;
+  references?: string;
 }
 
 interface EditTableModalProps {
@@ -18,6 +19,7 @@ interface EditTableModalProps {
   onClose: () => void;
   onAlter: (newTableName: string, operations: any[]) => Promise<void>;
   lang: LangType;
+  tables?: string[];
 }
 
 const POSTGRES_TYPES = [
@@ -31,9 +33,13 @@ const POSTGRES_TYPES = [
   'DATE',
   'JSONB',
   'NUMERIC(10,2)',
+  'INTEGER[]',
+  'VARCHAR(255)[]',
+  'TEXT[]',
+  'BOOLEAN[]'
 ];
 
-export default function EditTableModal({ tableName, columnsList, onClose, onAlter, lang }: EditTableModalProps) {
+export default function EditTableModal({ tableName, columnsList, onClose, onAlter, lang, tables = [] }: EditTableModalProps) {
   const [newTableName, setNewTableName] = useState(tableName);
   const t = translations[lang];
   
@@ -60,13 +66,19 @@ export default function EditTableModal({ tableName, columnsList, onClose, onAlte
       type: mappedType,
       isNullable: col.is_nullable === 'YES',
       defaultValue: cleanDefault,
+      references: col.references || '',
     };
   });
 
   const [fields, setFields] = useState<ColumnField[]>(initialFields);
+  const [expandedRefIndex, setExpandedRefIndex] = useState<number | null>(null);
   const [deletedColumnNames, setDeletedColumnNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleRefPanel = (index: number) => {
+    setExpandedRefIndex(expandedRefIndex === index ? null : index);
+  };
 
   const addColumn = () => {
     setFields([
@@ -78,6 +90,7 @@ export default function EditTableModal({ tableName, columnsList, onClose, onAlte
         isNullable: true,
         defaultValue: '',
         isNew: true,
+        references: '',
       },
     ]);
   };
@@ -128,6 +141,7 @@ export default function EditTableModal({ tableName, columnsList, onClose, onAlte
           columnType: field.type,
           isNullable: field.isNullable,
           defaultValue: field.defaultValue,
+          references: field.references,
         });
       } else {
         // Compute changes compared to its initial state
@@ -137,8 +151,9 @@ export default function EditTableModal({ tableName, columnsList, onClose, onAlte
           const typeChanged = field.type !== originalField.type;
           const nullableChanged = field.isNullable !== originalField.isNullable;
           const defaultChanged = field.defaultValue !== originalField.defaultValue;
+          const referencesChanged = (field.references || '') !== (originalField.references || '');
 
-          if (nameChanged || typeChanged || nullableChanged || defaultChanged) {
+          if (nameChanged || typeChanged || nullableChanged || defaultChanged || referencesChanged) {
             operations.push({
               type: 'modify',
               oldColumnName: originalField.name,
@@ -146,9 +161,11 @@ export default function EditTableModal({ tableName, columnsList, onClose, onAlte
               newType: field.type,
               newIsNullable: field.isNullable,
               newDefaultValue: field.defaultValue,
+              references: field.references,
               typeChanged,
               nullableChanged,
               defaultChanged,
+              referencesChanged,
             });
           }
         }
@@ -232,82 +249,148 @@ export default function EditTableModal({ tableName, columnsList, onClose, onAlte
               <div className="grid grid-cols-12 gap-2.5 p-2 px-3 bg-[#0A0B0D] border-b border-[#23252C] text-[9.5px] font-semibold uppercase tracking-wider text-gray-400 font-sans">
                 <div className="col-span-4">{t.columnNameHeader}</div>
                 <div className="col-span-3">{t.columnTypeHeader}</div>
-                <div className="col-span-2 text-center">{t.nullableHeader}</div>
+                <div className="col-span-2 text-center text-[10px]">NOT NULL</div>
                 <div className="col-span-2">{t.defaultHeader}</div>
                 <div className="col-span-1 text-right">{t.deleteColHeader}</div>
               </div>
 
               <div className="divide-y divide-[#23252C] max-h-72 overflow-y-auto">
                 {fields.map((col, index) => (
-                  <div key={index} className="grid grid-cols-12 gap-2.5 p-2 px-3 items-center hover:bg-[#151820]/45 font-mono text-xs">
-                    
-                    {/* Name */}
-                    <div className="col-span-4 flex items-center gap-1.5 min-w-0">
-                      {col.isNew ? (
-                        <span className="text-[8px] px-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded shrink-0">NEW</span>
-                      ) : (
-                        <span className="text-[8px] px-1 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded shrink-0">SQL</span>
-                      )}
-                      <input
-                        type="text"
-                        required
-                        aria-label={`Column Name ${index + 1}`}
-                        value={col.name}
-                        onChange={(e) => updateField(index, 'name', e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
-                        className="w-full rounded border border-[#2D2F34] bg-[#050506] px-2 py-1 text-xs text-white outline-none focus:border-gray-500 font-mono"
-                        placeholder="col_name"
-                      />
+                  <div key={index} className="flex flex-col hover:bg-[#151820]/25">
+                    <div className="grid grid-cols-12 gap-2.5 p-2 px-3 items-center font-mono text-xs">
+                      
+                      {/* Name */}
+                      <div className="col-span-4 flex items-center gap-1.5 min-w-0">
+                        {col.isNew ? (
+                          <span className="text-[8px] px-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded shrink-0">NEW</span>
+                        ) : (
+                          <span className="text-[8px] px-1 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded shrink-0">SQL</span>
+                        )}
+                        <input
+                          type="text"
+                          required
+                          aria-label={`Column Name ${index + 1}`}
+                          value={col.name}
+                          onChange={(e) => updateField(index, 'name', e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                          className="w-full rounded border border-[#2D2F34] bg-[#050506] px-2 py-1 text-xs text-white outline-none focus:border-gray-500 font-mono"
+                          placeholder="col_name"
+                        />
+                      </div>
+
+                      {/* Type select */}
+                      <div className="col-span-3">
+                        <select
+                          aria-label={`Type select ${index + 1}`}
+                          value={col.type}
+                          onChange={(e) => updateField(index, 'type', e.target.value)}
+                          className="w-full rounded border border-[#2D2F34] bg-[#050506] px-2 py-1 text-xs text-gray-300 outline-none focus:border-gray-500 cursor-pointer font-mono"
+                        >
+                          {POSTGRES_TYPES.map(tOption => (
+                            <option key={tOption} value={tOption} className="bg-[#050506]">{tOption}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Not Null */}
+                      <div className="col-span-2 flex justify-center">
+                        <input
+                          type="checkbox"
+                          aria-label={`Not Null checkbox ${index + 1}`}
+                          checked={!col.isNullable} // Checked means NOT NULL, so isNullable is false
+                          onChange={(e) => updateField(index, 'isNullable', !e.target.checked)}
+                          className="h-4 w-4 rounded border-[#2D2F34] bg-[#050506] text-white accent-white cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Default value */}
+                      <div className="col-span-2">
+                        <input
+                          type="text"
+                          aria-label={`Default value ${index + 1}`}
+                          value={col.defaultValue}
+                          onChange={(e) => updateField(index, 'defaultValue', e.target.value)}
+                          placeholder="'' or NULL"
+                          className="w-full rounded border border-[#2D2F34] bg-[#050506] px-2 py-1 text-xs text-gray-350 outline-none focus:border-gray-500 font-mono"
+                        />
+                      </div>
+
+                      {/* Drop column action */}
+                      <div className="col-span-1 flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleRefPanel(index)}
+                          className={`p-1 rounded transition-colors cursor-pointer ${
+                            col.references ? 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' : 'text-gray-500 hover:text-white'
+                          }`}
+                          title="Link to another table (FOREIGN KEY)"
+                          aria-label="Toggle link to another table"
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeColumn(index)}
+                          className="p-1 rounded text-red-400 hover:bg-red-500/15 cursor-pointer transition-colors"
+                          aria-label={`Delete button ${index + 1}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Type select */}
-                    <div className="col-span-3">
-                      <select
-                        aria-label={`Type select ${index + 1}`}
-                        value={col.type}
-                        onChange={(e) => updateField(index, 'type', e.target.value)}
-                        className="w-full rounded border border-[#2D2F34] bg-[#050506] px-2 py-1 text-xs text-gray-300 outline-none focus:border-gray-500 cursor-pointer font-mono"
-                      >
-                        {POSTGRES_TYPES.map(t => (
-                          <option key={t} value={t} className="bg-[#050506]">{t}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Expandable References Foreign Key Panel */}
+                    {expandedRefIndex === index && (
+                      <div className="mx-3 mb-2.5 p-2.5 rounded border border-[#2D2F34] bg-[#0A0B0D] flex flex-wrap items-center gap-3 animate-fade-in text-xs font-mono">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                          {lang === 'ru' ? 'Связь с другой таблицей (Foreign Key):' : lang === 'am' ? 'Կապ մեկ այլ աղյուսակի հետ (Foreign Key)՝' : 'Link with other table (Foreign Key):'}
+                        </span>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-600 font-normal">REFERENCES</span>
+                          <select
+                            value={col.references ? col.references.split('(')[0] : ''}
+                            onChange={(e) => {
+                              const tbl = e.target.value;
+                              if (!tbl) {
+                                updateField(index, 'references', '');
+                              } else {
+                                updateField(index, 'references', `${tbl}(id)`);
+                              }
+                            }}
+                            className="rounded border border-[#2D2F34] bg-[#0F1115] px-2 py-0.5 text-xs text-white outline-none cursor-pointer"
+                          >
+                            <option value="">-- {lang === 'ru' ? 'Выберите таблицу' : 'Select table'} --</option>
+                            {tables.map(tblName => (
+                              <option key={tblName} value={tblName}>{tblName}</option>
+                            ))}
+                          </select>
 
-                    {/* Nullable */}
-                    <div className="col-span-2 flex justify-center">
-                      <input
-                        type="checkbox"
-                        aria-label={`Nullable checkbox ${index + 1}`}
-                        checked={col.isNullable}
-                        onChange={(e) => updateField(index, 'isNullable', e.target.checked)}
-                        className="h-4 w-4 rounded border-[#2D2F34] bg-[#050506] text-white accent-white cursor-pointer"
-                      />
-                    </div>
+                          {col.references && (
+                            <>
+                              <span>(</span>
+                              <input
+                                type="text"
+                                value={col.references.substring(col.references.indexOf('(') + 1, col.references.indexOf(')')) || 'id'}
+                                onChange={(e) => {
+                                  const tbl = col.references!.split('(')[0];
+                                  const field = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
+                                  updateField(index, 'references', `${tbl}(${field})`);
+                                }}
+                                placeholder="id"
+                                className="w-16 rounded border border-[#2D2F34] bg-[#0F1115] px-1.5 py-0.5 text-xs text-white outline-none font-mono text-center"
+                              />
+                              <span>)</span>
+                            </>
+                          )}
+                        </div>
 
-                    {/* Default value */}
-                    <div className="col-span-2">
-                      <input
-                        type="text"
-                        aria-label={`Default value ${index + 1}`}
-                        value={col.defaultValue}
-                        onChange={(e) => updateField(index, 'defaultValue', e.target.value)}
-                        placeholder="'' or NULL"
-                        className="w-full rounded border border-[#2D2F34] bg-[#050506] px-2 py-1 text-xs text-gray-350 outline-none focus:border-gray-500 font-mono"
-                      />
-                    </div>
-
-                    {/* Drop column action */}
-                    <div className="col-span-1 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => removeColumn(index)}
-                        className="p-1 rounded text-red-400 hover:bg-red-500/15 cursor-pointer transition-colors"
-                        aria-label={`Delete button ${index + 1}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
+                        {col.references && (
+                          <div className="text-[10px] text-blue-400 font-mono w-full">
+                            → REFERENCES {col.references}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

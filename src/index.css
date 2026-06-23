@@ -8,10 +8,181 @@
 
 @layer base {
   body {
-    background-color: #060608;
+    background-color: #050506;
     color: #E2E8F0;
     font-family: var(--font-sans);
+    transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
+}
+
+/* Swiss Modern/Technical Paper Light Theme Override Schema */
+html.theme-light, html.theme-light body {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+/* Main background overrides */
+html.theme-light .bg-\[\#050506\],
+html.theme-light .bg-\[\#060608\],
+html.theme-light .bg-black,
+html.theme-light .bg-\[\#020203\],
+html.theme-light .bg-\[\#050506\]\/90 {
+  background-color: #F1F5F9 !important;
+}
+
+/* Card and Panel backgrounds with elegant borders */
+html.theme-light .bg-\[\#0A0B0D\],
+html.theme-light .bg-\[\#0F1115\],
+html.theme-light .bg-\[\#15171F\],
+html.theme-light .bg-\[\#111216\],
+html.theme-light .bg-\[\#14161E\],
+html.theme-light .bg-\[\#0d0e12\],
+html.theme-light .bg-neutral-900\/50,
+html.theme-light .bg-neutral-950\/30 {
+  background-color: #FFFFFF !important;
+}
+
+/* Header and Border system */
+html.theme-light header,
+html.theme-light .border-b,
+html.theme-light .border-t,
+html.theme-light .border-r,
+html.theme-light .border-l,
+html.theme-light .border,
+html.theme-light .border-\[\#131418\],
+html.theme-light .border-\[\#23252C\],
+html.theme-light .border-\[\#1C1D24\],
+html.theme-light .border-\[\#2D2F34\],
+html.theme-light .border-gray-800,
+html.theme-light .border-gray-750,
+html.theme-light .border-gray-700,
+html.theme-light .border-neutral-800,
+html.theme-light .border-slate-800 {
+  border-color: #E2E8F0 !important;
+}
+
+/* Inner component backgrounds (inputs, selector components) */
+html.theme-light input,
+html.theme-light select,
+html.theme-light textarea,
+html.theme-light .bg-\[\#050506\] {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Sub-inputs focus overrides matching the clean theme */
+html.theme-light input:focus, 
+html.theme-light select:focus, 
+html.theme-light textarea:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Hover effects */
+html.theme-light .hover\:bg-\[\#15171F\]:hover,
+html.theme-light .hover\:bg-\[\#0F1115\]:hover,
+html.theme-light .hover\:bg-gray-800:hover,
+html.theme-light .bg-\[\#0F1115\]\/50,
+html.theme-light .bg-gray-805\/50,
+html.theme-light .bg-neutral-800\/50 {
+  background-color: #F1F5F9 !important;
+}
+
+/* Text primary (Headings, active menus) */
+html.theme-light .text-\[\#E2E8F0\],
+html.theme-light .text-white,
+html.theme-light .text-gray-150,
+html.theme-light .text-gray-100,
+html.theme-light .text-gray-200,
+html.theme-light .text-gray-300,
+html.theme-light h1,
+html.theme-light h2,
+html.theme-light h3,
+html.theme-light h4,
+html.theme-light .hover\:text-white:hover {
+  color: #0F172A !important;
+}
+
+/* Muted secondary texts */
+html.theme-light .text-\[\#94A3B8\],
+html.theme-light .text-gray-400,
+html.theme-light .text-gray-500,
+html.theme-light p {
+  color: #475569 !important;
+}
+
+/* Sidebar lists backgrounds */
+html.theme-light .bg-\[\#060608\],
+html.theme-light .bg-\[\#08090C\] {
+  background-color: #F8FAFC !important;
+  border-right: 1px solid #E2E8F0 !important;
+}
+
+/* Decorative system badge overrides */
+html.theme-light .bg-\[\#16181C\] {
+  background-color: #E2E8F0 !important;
+  color: #1E293B !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Dropdown overlay & Modals overlay */
+html.theme-light .bg-black\/85,
+html.theme-light .bg-black\/50,
+html.theme-light .bg-black\/75 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+html.theme-light .bg-\[\#0A0B0D\]\/60 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Accent status containers */
+html.theme-light .bg-emerald-500\/10,
+html.theme-light .bg-emerald-950\/20 {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+
+html.theme-light .bg-amber-500\/10,
+html.theme-light .bg-amber-950\/20 {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+}
+
+html.theme-light .bg-indigo-500\/10,
+html.theme-light .bg-indigo-950\/20 {
+  background-color: rgba(99, 102, 241, 0.08) !important;
+}
+
+html.theme-light .bg-red-500\/10,
+html.theme-light .bg-red-950\/20 {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+html.theme-light .text-emerald-400,
+html.theme-light .text-emerald-300 {
+  color: #059669 !important;
+}
+
+html.theme-light .text-amber-400,
+html.theme-light .text-amber-300 {
+  color: #D97706 !important;
+}
+
+html.theme-light .text-rose-400,
+html.theme-light .text-red-400,
+html.theme-light .text-red-300 {
+  color: #DC2626 !important;
+}
+
+html.theme-light .text-indigo-400,
+html.theme-light .text-indigo-300 {
+  color: #4F46E5 !important;
+}
+
+html.theme-light .bg-emerald-500 {
+  background-color: #10B981 !important;
+  color: #FFFFFF !important;
 }
 
 /* Custom Scrollbar for High Density look */

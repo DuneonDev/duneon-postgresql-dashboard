@@ -147,7 +147,18 @@ function interpolateSql(sql: string, params: any[]): string {
       } else if (typeof val === 'number') {
         escapedVal = val.toString();
       } else if (typeof val === 'object') {
-        escapedVal = "'" + JSON.stringify(val).replace(/'/g, "''") + "'::jsonb";
+        if (Array.isArray(val)) {
+          const items = val.map(v => {
+            if (v === null || v === undefined) return 'NULL';
+            if (typeof v === 'string') return "'" + v.replace(/'/g, "''") + "'";
+            if (typeof v === 'boolean') return v ? 'true' : 'false';
+            if (typeof v === 'number') return v.toString();
+            return "'" + JSON.stringify(v).replace(/'/g, "''") + "'";
+          });
+          escapedVal = `ARRAY[${items.join(', ')}]`;
+        } else {
+          escapedVal = "'" + JSON.stringify(val).replace(/'/g, "''") + "'::jsonb";
+        }
       }
     }
     // Match $1, $2, etc. and replace them. Use negative lookahead to prevent replacing $1 in $10.
@@ -230,16 +241,62 @@ class SshCommandLineClient {
   }
 }
 
+const sshPool = new Map<string, Promise<SSHClient> | SSHClient>();
+const hostCliFallbackMap = new Set<string>();
+
+function getSshKey(config: SSHConfig): string {
+  return `${config.host}:${config.port || 22}:${config.username}:${config.password || ''}:${config.privateKey || ''}`;
+}
+
+async function getCachedSSH(config: SSHConfig): Promise<SSHClient> {
+  const key = getSshKey(config);
+  let existing = sshPool.get(key);
+  if (existing) {
+    try {
+      const client = await existing;
+      if (client && (client as any)._sock && !(client as any)._sock.destroyed) {
+        return client;
+      }
+    } catch (e) {
+      // Ignore and recreate
+    }
+    sshPool.delete(key);
+  }
+
+  const connectPromise = connectSSH(config);
+  sshPool.set(key, connectPromise);
+
+  try {
+    const client = await connectPromise;
+    client.on('error', (err) => {
+      console.log('[SSH Pool error]:', err.message);
+      sshPool.delete(key);
+    });
+    client.on('close', () => {
+      console.log('[SSH Pool connection closed]');
+      sshPool.delete(key);
+    });
+    client.on('end', () => {
+      sshPool.delete(key);
+    });
+    return client;
+  } catch (err) {
+    sshPool.delete(key);
+    throw err;
+  }
+}
+
 export async function withPgClient<T>(
   sshConfig: SSHConfig,
   pgConfig: PgConfig,
   callback: (client: PgClient) => Promise<T>
 ): Promise<T> {
-  console.log(`[withPgClient] Initiating SSH connection to ${sshConfig.host}:${sshConfig.port || 22} using user ${sshConfig.username}`);
-  const ssh = await connectSSH(sshConfig);
-  console.log(`[withPgClient] SSH connection established successfully!`);
+  console.log(`[withPgClient] Initiating or retrieving cached SSH connection to ${sshConfig.host}:${sshConfig.port || 22} using user ${sshConfig.username}`);
+  const ssh = await getCachedSSH(sshConfig);
+  console.log(`[withPgClient] SSH connection retrieved successfully!`);
   
   return new Promise<T>(async (resolve, reject) => {
+    const key = getSshKey(sshConfig);
     let finished = false;
     let pgClient: PgClient | null = null;
     let fallbackMode = false;
@@ -269,7 +326,7 @@ export async function withPgClient<T>(
         try { pgClient.end(); } catch (e) {}
         pgClient = null;
       }
-      try { ssh.end(); } catch (e) {}
+      // Note: do NOT end `ssh` connection as it belongs to the shared pool
       if (fallbackSshObj) {
         try { fallbackSshObj.end(); } catch (e) {}
         fallbackSshObj = null;
@@ -286,28 +343,45 @@ export async function withPgClient<T>(
     const triggerFallback = async () => {
       if (finished) return;
       fallbackMode = true;
+      hostCliFallbackMap.add(key);
+
       if (pgClient) {
         try { pgClient.end(); } catch (e) {}
         pgClient = null;
       }
-      // Proactively end the original SSH connection in case it is half-closed or blocked
-      try { ssh.end(); } catch (e) {}
 
-      console.log(`[withPgClient CLI Fallback] Connecting a fresh, dedicated SSH connection for CLI query execution...`);
+      console.log(`[withPgClient CLI Fallback] Running database callback via SshCommandLineClient (using pooled SSH connection)...`);
       try {
-        fallbackSshObj = await connectSSH(sshConfig);
-        console.log(`[withPgClient CLI Fallback] Dedicated SSH connection established! Running database callback via SshCommandLineClient...`);
-        
-        const fakeClient = new SshCommandLineClient(fallbackSshObj, pgConfig);
+        const fakeClient = new SshCommandLineClient(ssh, pgConfig);
         const result = await callback(fakeClient as any);
         finalCleanup();
         resolve(result);
       } catch (err: any) {
-        console.error(`[withPgClient CLI Fallback] Fallback execution FAILED:`, err);
-        finalCleanup();
-        reject(err);
+        console.warn(`[withPgClient CLI Fallback] Cached SSH connection failed for command execution. Re-dialing SSH...`, err);
+        // Clean bad SSH from pool & retry with a fresh SSH connection
+        sshPool.delete(key);
+        try { ssh.end(); } catch (e) {}
+
+        try {
+          fallbackSshObj = await connectSSH(sshConfig);
+          console.log(`[withPgClient CLI Fallback] Fresh SSH connection established! Running database callback...`);
+          const fakeClient = new SshCommandLineClient(fallbackSshObj, pgConfig);
+          const result = await callback(fakeClient as any);
+          finalCleanup();
+          resolve(result);
+        } catch (retryErr: any) {
+          console.error(`[withPgClient CLI Fallback] Fresh SSH fallback execution also FAILED:`, retryErr);
+          finalCleanup();
+          reject(retryErr);
+        }
       }
     };
+
+    if (hostCliFallbackMap.has(key)) {
+      console.log(`[withPgClient] Key ${key} is flagged in CLI bypass cache. Triggering fallback immediately without native TCP forward attempt.`);
+      triggerFallback();
+      return;
+    }
 
     const destHost = pgConfig.host || '127.0.0.1';
     const destPort = pgConfig.port || 5432;

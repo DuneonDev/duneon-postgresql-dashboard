@@ -46,6 +46,7 @@ export interface TranslationDictionary {
   tabSchema: string;
   tabTerminal: string;
   tabUsers: string;
+  tabEr: string;
 
   // Modal Common
   cancel: string;
@@ -96,12 +97,32 @@ export interface TranslationDictionary {
   msgUserCreatedSuccess: string;
   msgUserDeletedSuccess: string;
   cantDeleteRowNoPk: string;
+  bulkDeleteSelected: string;
+  msgConfirmDeleteMultipleRowsTitle: string;
+  msgConfirmDeleteMultipleRowsMsg: string;
   tunnelPortForward: string;
   dbDeletedSuccess: string;
   dbCreatedSuccess: string;
   sqlQuerySuccess: string;
   confirmDeleteTableTitle: string;
   confirmDeleteTableMsg: string;
+  exportCsv: string;
+  exportJson: string;
+  queryHistory: string;
+  clearHistory: string;
+  emptyHistory: string;
+  settingsTitle: string;
+  settingsDesc: string;
+  themeLabel: string;
+  themeLight: string;
+  themeDark: string;
+  themeSystem: string;
+  soundLabel: string;
+  soundVolume: string;
+  soundMuted: string;
+  soundEnabled: string;
+  langLabel: string;
+  saveSettings: string;
 }
 
 export const translations: Record<LangType, TranslationDictionary> = {
@@ -149,6 +170,7 @@ export const translations: Record<LangType, TranslationDictionary> = {
     tabSchema: "Схема и связи",
     tabTerminal: "SQL Терминал",
     tabUsers: "Права / Пользователи",
+    tabEr: "ER Диаграмма",
 
     cancel: "ОТМЕНА",
     save: "СОХРАНИТЬ",
@@ -193,12 +215,32 @@ export const translations: Record<LangType, TranslationDictionary> = {
     msgUserCreatedSuccess: "Роль успешно создана!",
     msgUserDeletedSuccess: "Роль успешно удалена.",
     cantDeleteRowNoPk: "Невозможно удалить строку: отсутствует первичный ключ (PRIMARY KEY)",
+    bulkDeleteSelected: "Удалить выбранные",
+    msgConfirmDeleteMultipleRowsTitle: "Удаление нескольких записей",
+    msgConfirmDeleteMultipleRowsMsg: "Вы уверены, что хотите окончательно удалить выбранные строки ({count} шт.)?",
     tunnelPortForward: "ПОРТ_ФОРВАРДИНГ",
     dbDeletedSuccess: "База данных успешно удалена.",
     dbCreatedSuccess: "База данных успешно создана.",
     sqlQuerySuccess: "SQL Запрос выполнен успешно!",
     confirmDeleteTableTitle: "Удаление таблицы",
-    confirmDeleteTableMsg: "Вы действительно хотите удалить эту таблицу и все связанные с ней данные без возможности восстановления?"
+    confirmDeleteTableMsg: "Вы действительно хотите удалить эту таблицу и все связанные с ней данные без возможности восстановления?",
+    exportCsv: "Экспорт в CSV",
+    exportJson: "Экспорт в JSON",
+    queryHistory: "История запросов",
+    clearHistory: "Очистить историю",
+    emptyHistory: "История пуста",
+    settingsTitle: "Настройки системы",
+    settingsDesc: "Управление аудиосимволами, громкостью и визуальной схемой интерфейса.",
+    themeLabel: "Цветовая схема",
+    themeLight: "Светлая тема",
+    themeDark: "Темная тема",
+    themeSystem: "Системные настройки",
+    soundLabel: "Звуковые эффекты",
+    soundVolume: "Громкость звуков",
+    soundMuted: "Выключить звук",
+    soundEnabled: "Включить звук",
+    langLabel: "Язык интерфейса",
+    saveSettings: "ПРИМЕНИТЬ НАСТРОЙКИ"
   },
   en: {
     brandTitle: "DBMS Technology Ecosystem for Maximum Efficiency",
@@ -244,6 +286,7 @@ export const translations: Record<LangType, TranslationDictionary> = {
     tabSchema: "Schema & Constraints",
     tabTerminal: "SQL Terminal",
     tabUsers: "Privileges / Roles",
+    tabEr: "ER Diagram",
 
     cancel: "CANCEL",
     save: "SAVE CHANGES",
@@ -288,12 +331,32 @@ export const translations: Record<LangType, TranslationDictionary> = {
     msgUserCreatedSuccess: "Role created successfully!",
     msgUserDeletedSuccess: "Role successfully deleted.",
     cantDeleteRowNoPk: "Cannot delete row: no PRIMARY KEY found",
+    bulkDeleteSelected: "Delete Selected",
+    msgConfirmDeleteMultipleRowsTitle: "Delete Multiple Records",
+    msgConfirmDeleteMultipleRowsMsg: "Are you sure you want to permanently delete {count} selected rows?",
     tunnelPortForward: "PORT_FORWARDING",
     dbDeletedSuccess: "Database deleted successfully.",
     dbCreatedSuccess: "Database created successfully.",
     sqlQuerySuccess: "SQL query executed successfully!",
     confirmDeleteTableTitle: "Delete Table",
-    confirmDeleteTableMsg: "Are you sure you want to permanently delete this table and all its data? This cannot be undone."
+    confirmDeleteTableMsg: "Are you sure you want to permanently delete this table and all its data? This cannot be undone.",
+    exportCsv: "Export to CSV",
+    exportJson: "Export to JSON",
+    queryHistory: "Query History",
+    clearHistory: "Clear History",
+    emptyHistory: "No query history",
+    settingsTitle: "System Settings",
+    settingsDesc: "Configure system audio chimes, volume levels, and visual interface themes.",
+    themeLabel: "Color Theme",
+    themeLight: "Light Theme",
+    themeDark: "Dark Theme",
+    themeSystem: "System Preference",
+    soundLabel: "Audio Chimes",
+    soundVolume: "Sound Volume",
+    soundMuted: "Muted",
+    soundEnabled: "Enabled",
+    langLabel: "Interface Language",
+    saveSettings: "APPLY SETTINGS"
   },
   am: {
     brandTitle: "ՏՀԿԷ տեխնոլոգիական էկոհամակարգ առավելագույն արդյունավետության համար",
@@ -339,6 +402,7 @@ export const translations: Record<LangType, TranslationDictionary> = {
     tabSchema: "Սխեմա և Կապեր",
     tabTerminal: "SQL Տերմինալ",
     tabUsers: "Արտոնություններ / Օգտատերեր",
+    tabEr: "ER Դիագրամ",
 
     cancel: "ՉԵՂԱՐԿԵԼ",
     save: "ՊԱՀՊԱՆԵԼ ՓՈՓՈԽՈՒԹՅՈՒՆՆԵՐԸ",
@@ -383,11 +447,31 @@ export const translations: Record<LangType, TranslationDictionary> = {
     msgUserCreatedSuccess: "Դերը հաջողությամբ ստեղծվել է:",
     msgUserDeletedSuccess: "Դերը հաջողությամբ ջնջվել է:",
     cantDeleteRowNoPk: "Հնարավոր չէ ջնջել տողը. առաջնային բանալին (PRIMARY KEY) բացակայում է:",
+    bulkDeleteSelected: "Ջնջել ընտրվածները",
+    msgConfirmDeleteMultipleRowsTitle: "Բազմակի գրառումների ջնջում",
+    msgConfirmDeleteMultipleRowsMsg: "Համոզվա՞ծ եք, որ ցանկանում եք ընդմիշտ ջնջել {count} ընտրված տողերը:",
     tunnelPortForward: "ՊՈՐՏԻ_ՓՈԽԱՆՑՈՒՄ",
     dbDeletedSuccess: "Տվյալների բազան հաջողությամբ ջնջվել է:",
     dbCreatedSuccess: "Տվյալների բազան հաջողությամբ ստեղծվել է:",
     sqlQuerySuccess: "SQL հարցումը հաջողությամբ կատարվել է:",
     confirmDeleteTableTitle: "Աղյուսակի ջնջում",
-    confirmDeleteTableMsg: "Համոզվա՞ծ եք, որ ցանկանում եք ընդմիշտ ջնջել այս աղյուսակը և դրա ողջ պարունակությունը: Այս գործողությունը անդառնալի է:"
+    confirmDeleteTableMsg: "Համոզվա՞ծ եք, որ ցանկանում եք ընդմիշտ ջնջել այս աղյուսակը և դրա ողջ պարունակությունը: Այս գործողությունը անդառնալի է:",
+    exportCsv: "Արտահանել CSV",
+    exportJson: "Արտահանել JSON",
+    queryHistory: "Հարցումների պատմություն",
+    clearHistory: "Մաքրել պատմությունը",
+    emptyHistory: "Պատմությունը դատարկ է",
+    settingsTitle: "Համակարգի Կարգավորումներ",
+    settingsDesc: "Կարգավորեք համակարգի ձայնային ազդանշանները, ձայնի մակարդակը և գունային թեմաները:",
+    themeLabel: "Գունային թեմա",
+    themeLight: "Լուսավոր",
+    themeDark: "Մութ",
+    themeSystem: "Համակարգային",
+    soundLabel: "Ձայնային ազդանշաններ",
+    soundVolume: "Ձայնի բարձրություն",
+    soundMuted: "Անձայն",
+    soundEnabled: "Միացված է",
+    langLabel: "Ինտերֆեյսի լեզու",
+    saveSettings: "ԿԻՐԱՌԵԼ"
   }
 };

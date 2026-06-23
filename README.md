@@ -1,122 +1,82 @@
-# PostgreSQL SSH Dashboard
+# Duneon Postgres SSH Dashboard
 
-A modern, secure web-based dashboard for managing **PostgreSQL** databases on remote servers through an **SSH tunnel**.
+An elegant, corporate, lightweight full-stack administration client designed to configure, monitor, and query remote PostgreSQL databases securely over standard SSH Port Forwarding tunnels. 
 
-![Dashboard Preview](public/previews/preview.png)
+Built with **React (TypeScript), Tailwind CSS, Express, and Electron**.
 
-## ✨ Features
+---
 
-- **Secure SSH Tunneling** — Connect to PostgreSQL servers that are not directly accessible (behind firewalls, private networks, VPS, etc.)
-- **SSH Authentication** — Support for password and private key authentication
-- **PostgreSQL Administration**:
-  - Browse databases
-  - View tables and their structure
-  - Preview table content (up to 150 rows)
-  - Create and delete databases
-  - Create, modify, and delete tables and columns
-  - Manage PostgreSQL users (including Superuser role)
-- **Modern UI** — Built with React 19, Tailwind CSS, and smooth animations
-- **AI Assistant** — Integrated with Google Gemini (optional)
-- **Multi-language support** — English, Russian, and more
+## 🌎 Official Links & Support
 
-## 🛠  Tech Stack
+- **Website / Сайт**: [duneon.dev](https://duneon.dev)
+- **Email Support / Поддержка**: [support+postgresqlsshdashboard@duneon.dev](mailto:support+postgresqlsshdashboard@duneon.dev)
 
-**Frontend:**
-- React 19 + TypeScript
-- Vite
-- Tailwind CSS
-- Lucide Icons
-- Framer Motion
+---
 
-**Backend:**
-- Node.js + Express
-- `ssh2` — SSH tunneling
-- `pg` — PostgreSQL client
-- TypeScript
+## 🚀 Key Features / Ключевые Возможности
 
-## 🚀 Quick Start
+- **Secure Port Forwarding**: Automatic local forwarding loops created safely behind-the-scenes.
+- **Database Management**: Create/delete databases instantly with robust termination precautions.
+- **User Management**: Rapid creation/deletion of system roles and superuser configurations.
+- **Table Operations**: Dynamic full SQL generator, interactive base tables viewer, alter structures, and rows editor.
+- **Interactive Terminal**: Run custom complex multi-line PostgreSQL statements with clean structural data and error diagnostics.
+- **Localization**: Multi-language support (RU, EN, AM) built natively.
+- **No-Browser Desktop Packaging**: Fully integrated with Electron to compile into a lightweight native desktop binary with launcher icons.
 
-### 1. Clone the repository
+---
+
+## 🛠️ Installation & Local Run / Запуск и Установка
+
+### 1. Requirements / Требования
+- **Node.js**: v18 or later
+- **npm**: v9 or later
+
+### 2. Standard Development Start / Запуск в режиме разработки
 ```bash
-git clone https://github.com/DuneonDev/PostgreSQL-SSH-Dashboard.git
-cd PostgreSQL-SSH-Dashboard
-```
-
-### 2. Install dependencies
-```bash
+# Install dependencies / Установка зависимостей
 npm install
-```
 
-### 3. Configure environment
-```bash
-cp .env.example .env
-```
-Edit `.env` and add your **Gemini API key** (optional):
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-### 4. Run the application
-**Development mode:**
-```bash
+# Live Hot Reload dev loop / Запуск сервера разработки
 npm run dev
 ```
-**Production build:**
+
+### 3. Production Compilation / Сборка для Веб-сервера (Production)
 ```bash
+# Build frontend + bundle server into a unified module
 npm run build
-npm start
+
+# Start the Node Express backend loop
+npm run start
 ```
-The application will be available at `http://localhost:3000`
-
-## 📸 Screenshots
-![Dashboard Preview](public/screenshot/Screenshot-01.png)
-![Dashboard Preview](public/screenshot/Screenshot-02.png)
-![Dashboard Preview](public/screenshot/Screenshot-03.png)
-![Dashboard Preview](public/screenshot/Screenshot-04.png)
-![Dashboard Preview](public/screenshot/Screenshot-05.png)
-![Dashboard Preview](public/screenshot/Screenshot-06.png)
-![Dashboard Preview](public/screenshot/Screenshot-07.png)
-![Dashboard Preview](public/screenshot/Screenshot-08.png)
-
-## 🔒 Security Notes
-- All PostgreSQL connections are established through SSH tunnels
-- No direct exposure of PostgreSQL port (5432) to the internet
-- Credentials are not stored — entered per session
-- Use strong SSH keys in production
-
-## 🧩 Project Structure
-```text
-├── src/                 # React frontend
-├── server/              # Backend logic
-├── server.ts            # Main server entry point
-├── public/              # Static assets
-├── .env.example         # Environment variables template
-└── package.json
-```
-
-## 🤝 Contributing
-Contributions are welcome! Feel free to open issues or submit pull requests.
 
 ---
 
-## 📄 Licensing and Usage Notice
-This project is released under the **MIT License**. However, please note the following important restrictions regarding branding and intellectual property:
+## 📦 Building Native Linux Desktop Installer `.deb` / Сборка Десктоп-версии `.deb`
 
-* **Trademarks and Copyright:** The **"duneon"** name and all associated logos are **not** covered by the MIT License. They are protected by copyright and remain the exclusive property of the creator, **duneon**.
+The workspace is configured to compile the entire React frontend and Node SSH client into a standalone, desktop application wrapper (Electron) with an indicator menu icon. 
 
-* **Permissions:** You are free to use, study, and modify the source code for your own purposes, as permitted by the MIT License.
+To create the `.deb` installer for your Ubuntu, Debian, or Linux systems:
 
-* **Commercial Use and Distribution:** You may use the software for commercial projects or distribute it, provided that you strictly adhere to the terms of the MIT License. 
+```bash
+# Install dependencies if not already installed
+npm install
 
-* **Branding Requirements:** If you choose to redistribute or create a derivative work for commercial purposes, you **must remove or change all "duneon" logos and references to the "duneon" name** within your version of the product.
+# Compile application and assemble the production Debian installer
+npm run build:desktop
+```
 
-*For the full text of the MIT License, please refer to the `LICENSE` file included in this repository.*
+Once completed successfully, your ready-to-use `.deb` installer containing autostart launchers and app-menus icons will be located in:
+📂 **`/dist-desktop/`**
+
+You can install it directly by double-clicking or through terminal:
+```bash
+sudo dpkg -i dist-desktop/postgresql-ssh-tunnels-dashboard_1.0.0_amd64.deb
+sudo apt-get install -f
+```
 
 ---
 
-Made with ❤️ by Duneon — High-performance system solutions.
-<br>
-website: [duneon.dev](https://duneon.dev)
-<br>
-support: [support@duneon.dev](mailto:support+postgresqlsshdashboard@duneon.dev)
+## ⚖️ License / Лицензия
 
+Proprietary software licensed by **Duneon**. Please refer to the [LICENSE](./LICENSE) file for conditions. 
+*Note: Any direct copy, unmodified color themes, or 1-to-1 cloning of Duneon's branding layouts and corporate graphics is strictly prohibited under intellectual property laws. Please rename, re-brand, and adjust styles as described in the License if deploying a fork.*

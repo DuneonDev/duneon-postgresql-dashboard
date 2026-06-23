@@ -75,24 +75,38 @@ export default function AddRowModal({ onClose, columns, primaryKeys, editingRow,
         return;
       }
 
-      // Skip PRIMARY KEY input on editing if it's serial/auto column to prevent DB conflicts
-      if (editingRow && isPk) {
-        return; // PK is sent separately for matching, not updating
-      }
-
       // Convert values based on type
       if (val === '') {
         payload[col.column_name] = null;
       } else if (col.data_type === 'boolean') {
         payload[col.column_name] = val === 'true';
+      } else if (col.data_type === 'ARRAY' || col.data_type.includes('[]') || col.data_type.startsWith('_')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) {
+            payload[col.column_name] = parsed;
+          } else {
+            payload[col.column_name] = [val];
+          }
+        } catch {
+          if (val.startsWith('{') && val.endsWith('}')) {
+            payload[col.column_name] = val; // Let PostgreSQL parser handle standard brace array syntax
+          } else {
+            // Parse as comma separated list
+            payload[col.column_name] = val.split(',').map(s => s.trim()).filter(s => s !== '');
+          }
+        }
       } else if (col.data_type.startsWith('integer') || col.data_type.startsWith('bigint') || col.data_type.startsWith('numeric')) {
         const num = Number(val);
         payload[col.column_name] = isNaN(num) ? val : num;
-      } else if (col.data_type === 'jsonb' || col.data_type === 'json') {
+      } else if (col.data_type === 'jsonb' || col.data_type === 'json' || col.data_type.startsWith('json')) {
         try {
-          payload[col.column_name] = JSON.parse(val);
+          const parsed = JSON.parse(val);
+          payload[col.column_name] = JSON.stringify(parsed);
         } catch {
-          payload[col.column_name] = val; // leave it to raw string to trigger DB error or process
+          // If JSON.parse fails, let's make it a valid JSON string literal (e.g., '"hello"')
+          // so that PostgreSQL doesn't fail with "invalid input syntax for type json"
+          payload[col.column_name] = JSON.stringify(val);
         }
       } else {
         payload[col.column_name] = val;
@@ -144,7 +158,7 @@ export default function AddRowModal({ onClose, columns, primaryKeys, editingRow,
           <div className="space-y-3">
             {columns.map((col) => {
               const isPk = primaryKeys.includes(col.column_name);
-              const isEditingPk = editingRow && isPk;
+              const isEditingPk = false;
               const hasDefault = col.column_default !== null;
 
               return (
@@ -170,6 +184,23 @@ export default function AddRowModal({ onClose, columns, primaryKeys, editingRow,
                       <option value="true" className="bg-[#0F1115]">True</option>
                       <option value="false" className="bg-[#0F1115]">False</option>
                     </select>
+                  ) : col.data_type === 'ARRAY' || col.data_type.includes('[]') || col.data_type.startsWith('_') ? (
+                    <div className="space-y-1">
+                      <input
+                        id={`edit-${col.column_name}`}
+                        disabled={isEditingPk}
+                        type="text"
+                        value={formData[col.column_name] || ''}
+                        onChange={(e) => handleInputChange(col.column_name, e.target.value)}
+                        className="w-full rounded border border-[#2D2F34] bg-[#0F1115] px-2.5 py-1 text-xs text-white placeholder-gray-655 focus:border-blue-500 outline-none transition-colors font-mono"
+                        placeholder={lang === 'ru' ? 'Например: ["яблоко", "банан"] или 1,2,3' : 'e.g. ["apple", "banana"] or 1,2,3'}
+                      />
+                      <span className="text-[9px] text-gray-500 block leading-normal">
+                        {lang === 'ru'
+                          ? 'Введите как JSON-массив ["значение"] или просто через запятую'
+                          : 'Format as JSON array ["value"] or comma-separated list'}
+                      </span>
+                    </div>
                   ) : col.data_type === 'text' || col.data_type === 'jsonb' ? (
                     <textarea
                       id={`edit-${col.column_name}`}
