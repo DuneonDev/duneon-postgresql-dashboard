@@ -1,7 +1,7 @@
 {
   "name": "postgresql-ssh-tunnels-dashboard",
   "private": true,
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "Elegant corporate administration client to configure, monitor, and query PostgreSQL databases securely over SSH tunnels.",
   "author": "Duneon <support+postgresqlsshdashboard@duneon.dev>",
   "homepage": "https://duneon.dev",
